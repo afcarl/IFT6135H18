@@ -7,7 +7,6 @@ import numpy as np
 
 def convolve(w, s):
     """Circular convolution implementation."""
-    assert s.size(0) == 3
     t = torch.cat([w[-1:], w, w[:1]])
     c = F.conv1d(t.view(1, 1, -1), s.view(1, 1, -1)).view(-1)
     return c
@@ -17,8 +16,7 @@ class NTM(nn.Module):
     def __init__(self, N, M, in_size, batch_size, lstm=False):
         super(NTM, self).__init__()
         self.controller = Controller(in_size, lstm)
-        self.read_head = ReadHead(in_size, M)
-        self.write_head = WriteHead(in_size, M)
+        self.head = Head(in_size, M)
         self.batch_size = batch_size
         self.N = N
         self.M = M
@@ -57,6 +55,7 @@ class NTM(nn.Module):
         #assert w_g.size() == s.size()
         # truc moche
         #tilde_w = convolve(w_g, s)
+        #ipdb.set_trace()
         tilde_w = w_g
 
         # Sharpening
@@ -68,22 +67,23 @@ class NTM(nn.Module):
 
     def push(self, x):
         h = self.controller(x)
-        k, beta, g, s, gamma, e, a = self.write_head(h)
+        k, beta, g, s, gamma = self.head.compute_w_params(h)
         self.addressing((k, beta, g, s, gamma))
+        e, a = self.head.compute_write_params(h)
         self.write(e, a)
 
     def pull(self, x):
         h = self.controller(x)
-        k, beta, g, s, gamma, r = self.read_head(h)
+        k, beta, g, s, gamma = self.head.compute_w_params(h)
         self.addressing((k, beta, g, s, gamma))
         r = self.read()
-        out = F.sigmoid(self.output_layer(r))
+        out = self.head.compute_output(r)
         return out
 
-class WriteHead(nn.Module):
+class Head(nn.Module):
 
     def __init__(self, in_size, M):
-        super(WriteHead, self).__init__()
+        super(Head, self).__init__()
         self.beta_layer = nn.Linear(100, 1)
         self.gamma_layer = nn.Linear(100, 1)
         self.g_layer = nn.Linear(100, 1)
@@ -91,36 +91,23 @@ class WriteHead(nn.Module):
         self.k_layer = nn.Linear(100, M)
         self.e_layer = nn.Linear(100, M)
         self.a_layer = nn.Linear(100, M)
+        self.o_layer = nn.Linear(M, in_size)
 
-    def forward(self, h):
+    def compute_w_params(self, h):
         beta = F.softplus(self.beta_layer(h))
         gamma = 1 + F.softplus(self.gamma_layer(h))
         k = self.k_layer(h)
         s = self.s_layer(h)
         g = F.sigmoid(self.g_layer(h))
+        return k, beta, g, s, gamma
+
+    def compute_write_params(self, h):
         e = F.sigmoid(self.a_layer(h))
         a = self.a_layer(h)
-        return k, beta, g, s, gamma, e, a
+        return e, a
 
-class ReadHead(nn.Module):
-
-    def __init__(self, in_size, M):
-        super(ReadHead, self).__init__()
-        self.beta_layer = nn.Linear(100, 1)
-        self.gamma_layer = nn.Linear(100, 1)
-        self.g_layer = nn.Linear(100, 1)
-        self.s_layer = nn.Linear(100, 3)
-        self.k_layer = nn.Linear(100, M)
-        self.o_layer = nn.Linear(100, M)
-
-    def forward(self, h):
-        beta = F.softplus(self.beta_layer(h))
-        gamma = 1 + F.softplus(self.gamma_layer(h))
-        k = self.k_layer(h)
-        s = self.s_layer(h)
-        g = F.sigmoid(self.g_layer(h))
-        r = F.sigmoid(self.o_layer(h))
-        return k, beta, g, s, gamma, r
+    def compute_output(self, r):
+        return F.sigmoid(self.o_layer(r))
 
 class Controller(nn.Module):
 
@@ -144,7 +131,7 @@ ntm = NTM(N, M, dim+1, batch_size=32)
 ntm.cuda()
 
 criterion = torch.nn.BCELoss()
-opt = torch.optim.Adam(ntm.parameters(), lr=1e-2)
+opt = torch.optim.RMSprop(ntm.parameters(), lr=1e-2)
 
 
 for epoch in range(10000):
