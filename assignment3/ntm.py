@@ -5,9 +5,10 @@ import torch.nn.functional as F
 import ipdb
 import numpy as np
 
-def convolve(w, s):
+def circular_conv(w, s):
     """Circular convolution implementation."""
-    t = torch.cat([w[-1:], w, w[:1]])
+    circular_w = torch.cat([w[:, -1].unsqueeze(1), w, w[:, 0].unsqueeze(1)], 1)
+    ipdb.set_trace()
     c = F.conv1d(t.view(1, 1, -1), s.view(1, 1, -1)).view(-1)
     return c
 
@@ -16,13 +17,13 @@ class NTM(nn.Module):
     def __init__(self, N, M, in_size, batch_size, lstm=False):
         super(NTM, self).__init__()
         self.controller = Controller(in_size, lstm)
-        self.head = Head(in_size, M)
+        self.read_head   = ReadHead(in_size, batch_size, N, M)
+        self.write_head = WriteHead(batch_size, N, M)
         self.batch_size = batch_size
         self.N = N
         self.M = M
         self.eps = 1e-8
         self.memory = Variable(torch.zeros(batch_size, N, M).cuda())
-        self.weights = Variable(torch.ones(batch_size, N).cuda())/N
 
         self.output_layer = nn.Linear(M, in_size)
 
@@ -52,10 +53,7 @@ class NTM(nn.Module):
         w_g = g*w_c + (1-g)*self.weights
 
         # Convolutional shift
-        #assert w_g.size() == s.size()
-        # truc moche
-        #tilde_w = convolve(w_g, s)
-        #ipdb.set_trace()
+        #tilde_w = circular_conv(w_g, s)
         tilde_w = w_g
 
         # Sharpening
@@ -67,23 +65,23 @@ class NTM(nn.Module):
 
     def push(self, x):
         h = self.controller(x)
-        k, beta, g, s, gamma = self.head.compute_w_params(h)
+        k, beta, g, s, gamma = self.write_head.compute_w_params(h)
         self.addressing((k, beta, g, s, gamma))
-        e, a = self.head.compute_write_params(h)
+        e, a = self.write_head.compute_write_params(h)
         self.write(e, a)
 
     def pull(self, x):
         h = self.controller(x)
-        k, beta, g, s, gamma = self.head.compute_w_params(h)
+        k, beta, g, s, gamma = self.read_head.compute_w_params(h)
         self.addressing((k, beta, g, s, gamma))
         r = self.read()
-        out = self.head.compute_output(r)
+        out = self.read_head.compute_output(r)
         return out
 
-class Head(nn.Module):
+class WriteHead(nn.Module):
 
-    def __init__(self, in_size, M):
-        super(Head, self).__init__()
+    def __init__(self, batch_size, N, M):
+        super(WriteHead, self).__init__()
         self.beta_layer = nn.Linear(100, 1)
         self.gamma_layer = nn.Linear(100, 1)
         self.g_layer = nn.Linear(100, 1)
@@ -91,7 +89,7 @@ class Head(nn.Module):
         self.k_layer = nn.Linear(100, M)
         self.e_layer = nn.Linear(100, M)
         self.a_layer = nn.Linear(100, M)
-        self.o_layer = nn.Linear(M, in_size)
+        self.weights = Variable(torch.ones(batch_size, N).cuda())/N
 
     def compute_w_params(self, h):
         beta = F.softplus(self.beta_layer(h))
@@ -105,6 +103,26 @@ class Head(nn.Module):
         e = F.sigmoid(self.a_layer(h))
         a = self.a_layer(h)
         return e, a
+
+class ReadHead(nn.Module):
+
+    def __init__(self, in_size, batch_size, N,  M):
+        super(ReadHead, self).__init__()
+        self.beta_layer = nn.Linear(100, 1)
+        self.gamma_layer = nn.Linear(100, 1)
+        self.g_layer = nn.Linear(100, 1)
+        self.s_layer = nn.Linear(100, 3)
+        self.k_layer = nn.Linear(100, M)
+        self.o_layer = nn.Linear(M, in_size)
+        self.weights = Variable(torch.ones(batch_size, N).cuda())/N
+
+    def compute_w_params(self, h):
+        beta = F.softplus(self.beta_layer(h))
+        gamma = 1 + F.softplus(self.gamma_layer(h))
+        k = self.k_layer(h)
+        s = self.s_layer(h)
+        g = F.sigmoid(self.g_layer(h))
+        return k, beta, g, s, gamma
 
     def compute_output(self, r):
         return F.sigmoid(self.o_layer(r))
@@ -124,6 +142,8 @@ input = Variable(torch.bernoulli(torch.rand(32, 20, dim+1))).cuda()
 input[:, :, -1] = 0
 input[:, -1, -1] = 1
 
+input_zero = Variable(torch.zeros(32, dim+1)).cuda()
+
 M = 64
 N = 512
 
@@ -131,7 +151,7 @@ ntm = NTM(N, M, dim+1, batch_size=32)
 ntm.cuda()
 
 criterion = torch.nn.BCELoss()
-opt = torch.optim.RMSprop(ntm.parameters(), lr=1e-2)
+opt = torch.optim.Adam(ntm.parameters(), lr=1e-3)
 
 
 for epoch in range(10000):
@@ -141,11 +161,10 @@ for epoch in range(10000):
         ntm.push(input[:, i, :])
 
     for i in range(20):
-        if i == 0:
-            x = ntm.pull(input[:, -1, :])
-        else:
-            x = ntm.pull(x)
+        #x = ntm.pull()
+        x = ntm.pull(input_zero)
         loss += criterion(x, input[:, i, :])
+
     print(loss)
     opt.zero_grad()
     loss.backward()
