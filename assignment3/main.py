@@ -15,7 +15,7 @@ batch_size = 32
 dim = 8
 min_len = 1
 max_len = 20
-M = 6
+M = 10
 N = 32
 lr = 1e-4
 
