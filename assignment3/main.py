@@ -35,7 +35,7 @@ if __name__ == "__main__":
     ntm.cuda()
 
     criterion = torch.nn.BCELoss()
-    opt = torch.optim.Adam(ntm.parameters(), lr=1e-3)
+    opt = torch.optim.Adam(ntm.parameters(), lr=lr)
 
     for step, input in enumerate(seqgen):
         nb_samples = step * batch_size
@@ -46,7 +46,6 @@ if __name__ == "__main__":
             ntm.send(input[i, :, :])
 
         for i in range(input.size(0)):
-            # x = ntm.receive()
             x = ntm.receive(input_zero)
             loss += criterion(x, input[i, :, :])
             acc += (x.round() == input[i, :, :]).float().mean()[0]
