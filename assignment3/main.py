@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
         writer = SummaryWriter(log_dir=folder)
 
-    seqgen = generate_inf_sequence(dim, min_len, max_len, batch_size=batch_size)
+    seqgen = generate_inf_sequence(min_len, max_len, dim=dim, batch_size=batch_size)
 
     input_zero = Variable(torch.zeros(batch_size, dim + 1)).cuda()
 
@@ -37,26 +37,26 @@ if __name__ == "__main__":
     criterion = torch.nn.BCELoss()
     opt = torch.optim.Adam(ntm.parameters(), lr=lr)
 
-    for step, input in enumerate(seqgen):
+    for step, inp, out in seqgen:
         nb_samples = step * batch_size
         loss = 0
         ntm.reset()
         acc = 0
-        for i in range(input.size(0)):
-            ntm.send(input[i, :, :])
+        for i in range(inp.size(0)):
+            ntm.send(inp[i, :, :])
 
-        for i in range(input.size(0)):
+        for i in range(inp.size(0) - 1):
             x = ntm.receive(input_zero)
-            loss += criterion(x, input[i, :, :])
-            acc += (x.round() == input[i, :, :]).float().mean()[0]
+            loss += criterion(x[:, :-1], out[i])
+            acc += (x[:, :-1].round() == out[i]).float().mean()[0]
 
         if step % 25 == 0:
             print('Step:', step)
-            print('Loss:', loss.data[0] / input.size(0))
-            print('Accuracy:', acc.data[0] / input.size(0))
+            print('Loss:', loss.data[0] / out.size(0))
+            print('Accuracy:', acc.data[0] / out.size(0))
             if tb_plot:
-                writer.add_scalar('Loss', loss.data[0] / input.size(0), nb_samples)
-                writer.add_scalar('Accuracy', acc.data[0] / input.size(0), nb_samples)
+                writer.add_scalar('Loss', loss.data[0] / out.size(0), nb_samples)
+                writer.add_scalar('Accuracy', acc.data[0] / out.size(0), nb_samples)
 
         opt.zero_grad()
         loss.backward()
