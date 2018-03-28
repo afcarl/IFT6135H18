@@ -37,26 +37,31 @@ if __name__ == "__main__":
     criterion = torch.nn.BCELoss()
     opt = torch.optim.Adam(ntm.parameters(), lr=lr)
 
+    nb_samples = 0
     for step, inp, out in seqgen:
-        nb_samples = step * batch_size
+        nb_samples += batch_size
         loss = 0
         ntm.reset()
         acc = 0
         for i in range(inp.size(0)):
-            ntm.send(inp[i, :, :])
+            ntm.send(inp[i])
 
         for i in range(inp.size(0) - 1):
             x = ntm.receive(input_zero)
             loss += criterion(x[:, :-1], out[i])
             acc += (x[:, :-1].round() == out[i]).float().mean()[0]
 
+        meanloss = loss.data[0] / out.size(0)
+        meanacc = acc.data[0] / out.size(0)
+
         if step % 25 == 0:
-            print('Step:', step)
-            print('Loss:', loss.data[0] / out.size(0))
-            print('Accuracy:', acc.data[0] / out.size(0))
+            print(f'Step: {step:<9}'
+                  f'Loss: {meanloss:<10.4f}'
+                  f'Accuracy: {meanacc:<10.4f}'
+                  f'Length: {out.size(0):<5}')
             if tb_plot:
-                writer.add_scalar('Loss', loss.data[0] / out.size(0), nb_samples)
-                writer.add_scalar('Accuracy', acc.data[0] / out.size(0), nb_samples)
+                writer.add_scalar('Loss', meanloss, nb_samples)
+                writer.add_scalar('Accuracy', meanacc, nb_samples)
 
         opt.zero_grad()
         loss.backward()
