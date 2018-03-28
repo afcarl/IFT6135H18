@@ -4,6 +4,9 @@ import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Variable
 
+from assignment3.controller import Controller
+from assignment3.head import Head
+
 
 def circular_conv(w, s):
     circular_w = torch.cat([w[:, -1].unsqueeze(1), w, w[:, 0].unsqueeze(1)], 1)
@@ -12,6 +15,8 @@ def circular_conv(w, s):
     ans = ans + s[:, 0].unsqueeze(1) * circular_w[:, 2:]
     return ans
 
+
+# TODO implement an LSTM controller
 
 class NTM(nn.Module):
 
@@ -74,51 +79,3 @@ class NTM(nn.Module):
         return out
 
 
-class Head(nn.Module):
-
-    def __init__(self, batch_size, N, M):
-        super(Head, self).__init__()
-        self.beta_layer = nn.Linear(100, 1)
-        self.gamma_layer = nn.Linear(100, 1)
-        self.gate_layer = nn.Linear(100, 1)
-        self.shift_layer = nn.Linear(100, 3)
-        self.k_layer = nn.Linear(100, M)
-        self.erase_layer = nn.Linear(100, M)
-        self.add_layer = nn.Linear(100, M)
-        self.attention = None
-        self.attention_score_bias = Variable(torch.randn(1, \
-                                                         N), requires_grad=True).cuda() / np.sqrt(
-            N)
-        self.batch_size = batch_size
-
-    def compute_attention_params(self, h):
-        beta = F.softplus(self.beta_layer(h))
-        gamma = 1 + F.softplus(self.gamma_layer(h))
-        k = self.k_layer(h)
-        shift = F.softmax(self.shift_layer(h), dim=-1)
-        gate = F.sigmoid(self.gate_layer(h))
-        return k, beta, gate, shift, gamma
-
-    def compute_write_params(self, h):
-        e = F.sigmoid(self.erase_layer(h))
-        a = self.add_layer(h)
-        return e, a
-
-    def reset(self):
-        self.attention = F.softmax(self.attention_score_bias, \
-                                   dim=1).repeat(self.batch_size, 1).clone()
-
-
-class Controller(nn.Module):
-
-    def __init__(self, in_size, M, out_size, lstm=False):
-        super(Controller, self).__init__()
-        self.layer = nn.Linear(in_size, 100)
-        self.output_layer = nn.Linear(M, out_size)
-
-    def forward(self, x):
-        h = self.layer(x)
-        return h
-
-    def compute_output(self, r):
-        return F.sigmoid(self.output_layer(r))
