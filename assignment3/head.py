@@ -1,4 +1,5 @@
-import numpy as np
+import math
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -17,7 +18,7 @@ class Head(nn.Module):
         self.add_layer = nn.Linear(100, M)
         self.attention = None
         self.register_parameter('attention_score_bias', nn.Parameter(
-            torch.randn(1, N) / np.sqrt(N)))
+            torch.randn(1, N) / math.sqrt(N)))
         self.batch_size = batch_size
 
     def compute_attention_params(self, h):
@@ -36,4 +37,3 @@ class Head(nn.Module):
     def reset(self):
         self.attention = F.softmax(self.attention_score_bias.clone(),
                                    dim=1).repeat(self.batch_size, 1)
-

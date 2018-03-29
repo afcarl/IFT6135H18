@@ -1,4 +1,4 @@
-import numpy as np
+import math
 import torch
 import torch.nn.functional as F
 from controller import FeedForwardController, LSTMController
@@ -34,7 +34,7 @@ class NTM(nn.Module):
         self.eps = 1e-8
         self.memory = None
         self.register_parameter('memory_bias',
-                                nn.Parameter(torch.randn(1, N, M) / np.sqrt(N)))
+                                nn.Parameter(torch.randn(1, N, M) / math.sqrt(N)))
 
     def reset(self):
         self.controller.reset()
