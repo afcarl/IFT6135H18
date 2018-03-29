@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.autograd import Variable
 
 from controller import FeedForwardController, LSTMController
 from head import Head
@@ -35,14 +34,11 @@ class NTM(nn.Module):
         self.M = M
         self.eps = 1e-8
         self.memory = None
-        self.memory_bias = Variable(torch.randn(1, N, M),
-                                    requires_grad=True) / np.sqrt(N)
+        self.memory_bias = nn.Parameter(torch.randn(1, N, M)) / np.sqrt(N)
 
-    def reset(self, cuda):
+    def reset(self):
         self.controller.reset()
         self.memory = self.memory_bias.repeat(self.batch_size, 1, 1).clone()
-        if cuda:
-            self.memory = self.memory.cuda()
         self.write_head.reset()
         self.read_head.reset()
 

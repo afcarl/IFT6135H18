@@ -16,7 +16,7 @@ if __name__ == "__main__":
     M = 20
     N = 128
     lr = 1e-4
-    lstm = True
+    lstm = False
 
     cuda = torch.cuda.is_available()
 
@@ -50,10 +50,9 @@ if __name__ == "__main__":
 
         nb_samples += batch_size
 
-        ntm.reset(cuda)
+        ntm.reset()
 
         loss = 0
-        ntm.reset(cuda)
         acc = 0
         for i in range(inp.size(0)):
             ntm.send(inp[i])
