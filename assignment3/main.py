@@ -16,7 +16,7 @@ if __name__ == "__main__":
     M = 20
     N = 128
     lr = 1e-4
-    lstm = False
+    lstm = True
 
     cuda = torch.cuda.is_available()
 
@@ -24,8 +24,8 @@ if __name__ == "__main__":
         from tensorboardX import SummaryWriter
 
         now = datetime.datetime.now()
-        folder = (f'logs/{now.month}_{now.day}/'
-                  f'{now.hour}_{now.minute}_{now.second}'
+        folder = (f'logs/{now.month:0>2}_{now.day:0>2}/'
+                  f'{now.hour:0>2}_{now.minute:0>2}_{now.second:0>2}'
                   f'_{"LSTM" if lstm else "MLP"}_N={N}_M={M}'
                   f'_min_l={min_len}_batch={batch_size}_lr={lr}')
         print(folder)
