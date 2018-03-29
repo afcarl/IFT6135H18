@@ -1,6 +1,7 @@
 import datetime
 
 import torch
+import ipdb
 from ntm import NTM
 from sequence_generator import *
 from torch.autograd import Variable
@@ -8,12 +9,12 @@ from torch.autograd import Variable
 tb_plot = True
 
 if __name__ == "__main__":
-    batch_size = 32
+    batch_size = 1
     dim = 8
     min_len = 1
     max_len = 20
-    M = 10
-    N = 32
+    M = 20
+    N = 128
     lr = 1e-4
     lstm = True
 
@@ -51,6 +52,7 @@ if __name__ == "__main__":
         ntm.reset(cuda)
 
         loss = 0
+        ntm.reset()
         acc = 0
         for i in range(inp.size(0)):
             ntm.send(inp[i])
@@ -74,6 +76,7 @@ if __name__ == "__main__":
 
         opt.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm(ntm.parameters(), 10)
         opt.step()
         if nb_samples > 2000000:
             break

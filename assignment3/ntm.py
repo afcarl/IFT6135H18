@@ -48,7 +48,7 @@ class NTM(nn.Module):
 
     def read(self):
         r = torch.bmm(self.read_head.attention.unsqueeze(1), self.memory)
-        return r.squeeze()
+        return r.view(self.batch_size, -1)
 
     def write(self, e, a):
         tilde_memory = self.memory * (1 - self.write_head.attention.unsqueeze(2) * e.unsqueeze(1))
