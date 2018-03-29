@@ -24,9 +24,9 @@ class NTM(nn.Module):
         super(NTM, self).__init__()
 
         if lstm:
-            self.controller = LSTMController(in_size, out_size, M)
+            self.controller = LSTMController(in_size, out_size, M, batch_size)
         else:
-            self.controller = FeedForwardController(in_size, out_size, M)
+            self.controller = FeedForwardController(in_size, out_size, M, batch_size)
 
         self.read_head = Head(batch_size, N, M)
         self.write_head = Head(batch_size, N, M)
@@ -39,12 +39,12 @@ class NTM(nn.Module):
                                     requires_grad=True) / np.sqrt(N)
 
     def reset(self, cuda):
-        self.controller.reset(cuda)
+        self.controller.reset()
         self.memory = self.memory_bias.repeat(self.batch_size, 1, 1).clone()
         if cuda:
             self.memory = self.memory.cuda()
-        self.write_head.reset(cuda)
-        self.read_head.reset(cuda)
+        self.write_head.reset()
+        self.read_head.reset()
 
     def read(self):
         r = torch.bmm(self.read_head.attention.unsqueeze(1), self.memory)

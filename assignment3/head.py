@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from torch import nn
-from torch.autograd import Variable
 from torch.nn import functional as F
 
 
@@ -17,8 +16,8 @@ class Head(nn.Module):
         self.erase_layer = nn.Linear(100, M)
         self.add_layer = nn.Linear(100, M)
         self.attention = None
-        self.attention_score_bias = Variable(
-            torch.randn(1, N), requires_grad=True)/ np.sqrt(N)
+        self.attention_score_bias = nn.Parameter(
+            torch.randn(1, N)) / np.sqrt(N)
         self.batch_size = batch_size
 
     def compute_attention_params(self, h):
@@ -34,8 +33,7 @@ class Head(nn.Module):
         a = self.add_layer(h)
         return e, a
 
-    def reset(self, cuda):
-        self.attention = F.softmax(self.attention_score_bias,
-                                   dim=1).repeat(self.batch_size, 1).clone()
-        if cuda:
-            self.attention = self.attention.cuda()
+    def reset(self):
+        self.attention = F.softmax(self.attention_score_bias.clone(),
+                                   dim=1).repeat(self.batch_size, 1)
+

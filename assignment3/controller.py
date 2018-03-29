@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 class FeedForwardController(nn.Module):
 
-    def __init__(self, in_size, out_size, M):
+    def __init__(self, in_size, out_size, M, batch_size):
         super(FeedForwardController, self).__init__()
         self.in_net = nn.Linear(in_size, 100)
         self.out_net = nn.Linear(M, out_size)
@@ -17,19 +17,22 @@ class FeedForwardController(nn.Module):
     def compute_output(self, read):
         return self.out_net(read)
 
-    def reset(self, cuda):
+    def reset(self):
         pass
 
 
 class LSTMController(nn.Module):
 
-    def __init__(self, in_size, out_size, M):
+    def __init__(self, in_size, out_size, M, batch_size):
         super(LSTMController, self).__init__()
 
+        self.batch_size = batch_size
+
         self.lstm = nn.LSTMCell(in_size, 100)
+        self.hidden_bias = nn.Parameter(torch.zeros(1, 100))
+        self.cell_bias = nn.Parameter(torch.zeros(1, 100))
         self.hidden_state = None
         self.cell_state = None
-        self.reset(cuda=False)
 
         self.out_net = nn.Linear(M, out_size)
 
@@ -41,9 +44,6 @@ class LSTMController(nn.Module):
     def compute_output(self, read):
         return self.out_net(read)
 
-    def reset(self, cuda):
-        self.hidden_state = Variable(torch.zeros(1, 100))
-        self.cell_state = Variable(torch.zeros(1, 100))
-        if cuda:
-            self.hidden_state = self.hidden_state.cuda()
-            self.cell_state = self.cell_state.cuda()
+    def reset(self):
+        self.hidden_state = self.hidden_bias.clone().repeat(self.batch_size, 1)
+        self.cell_state = self.cell_bias.clone().repeat(self.batch_size, 1)
