@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.autograd import Variable
+import torch.nn.functional as F
 
 
 class FeedForwardController(nn.Module):
@@ -11,7 +12,7 @@ class FeedForwardController(nn.Module):
         self.out_net = nn.Linear(M, out_size)
 
     def forward(self, x):
-        return self.in_net(x)
+        return F.elu(self.in_net(x))
 
     def compute_output(self, read):
         return self.out_net(read)
@@ -35,7 +36,7 @@ class LSTMController(nn.Module):
     def forward(self, x):
         self.hidden_state, self.cell_state = self.lstm(
             x, (self.hidden_state, self.cell_state))
-        return self.hidden_state
+        return F.elu(self.hidden_state)
 
     def compute_output(self, read):
         return self.out_net(read)
