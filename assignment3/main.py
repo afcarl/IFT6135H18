@@ -1,10 +1,10 @@
 import datetime
 
 import torch
-import ipdb
 from ntm import NTM
 from sequence_generator import *
 from torch.autograd import Variable
+import torch.nn.functional as F
 
 tb_plot = True
 
@@ -16,9 +16,9 @@ if __name__ == "__main__":
     M = 20
     N = 128
     lr = 1e-4
-    lstm = True
+    lstm = False
 
-    cuda = True
+    cuda = torch.cuda.is_available()
 
     if tb_plot:
         from tensorboardX import SummaryWriter
@@ -38,6 +38,7 @@ if __name__ == "__main__":
     ntm = NTM(N, M, dim + 1, dim, batch_size=batch_size, lstm=lstm)
 
     if cuda:
+        print("Using cuda.")
         input_zero = input_zero.cuda()
         ntm = ntm.cuda()
 
@@ -52,7 +53,7 @@ if __name__ == "__main__":
         ntm.reset(cuda)
 
         loss = 0
-        ntm.reset()
+        ntm.reset(cuda)
         acc = 0
         for i in range(inp.size(0)):
             ntm.send(inp[i])
@@ -60,7 +61,7 @@ if __name__ == "__main__":
         for i in range(inp.size(0) - 1):
             x = ntm.receive(input_zero)
             loss += criterion(x, out[i])
-            acc += (x.round() == out[i]).float().mean()[0]
+            acc += (F.sigmoid(x).round() == out[i]).float().mean()[0]
 
         meanloss = loss.data[0] / out.size(0)
         meanacc = acc.data[0] / out.size(0)
