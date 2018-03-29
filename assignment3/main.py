@@ -1,6 +1,7 @@
 import datetime
 
 import torch
+import ipdb
 from ntm import NTM
 from sequence_generator import *
 from torch.autograd import Variable
@@ -8,13 +9,14 @@ from torch.autograd import Variable
 tb_plot = True
 
 if __name__ == "__main__":
-    batch_size = 32
+    batch_size = 1
     dim = 8
     min_len = 1
     max_len = 20
-    M = 10
-    N = 32
+    M = 20
+    N = 128
     lr = 1e-4
+    use_cuda = False
 
     if tb_plot:
         from tensorboardX import SummaryWriter
@@ -27,13 +29,14 @@ if __name__ == "__main__":
 
         writer = SummaryWriter(log_dir=folder)
 
-    seqgen = generate_inf_sequence(min_len, max_len, dim=dim, batch_size=batch_size)
-
-    input_zero = Variable(torch.zeros(batch_size, dim + 1)).cuda()
-
     ntm = NTM(N, M, dim + 1, dim + 1, batch_size=batch_size)
-    ntm.cuda()
+    input_zero = Variable(torch.zeros(batch_size, dim + 1))
+    if torch.cuda.is_available():
+        use_cuda = True
+        input_zero.cuda()
+        ntm.cuda()
 
+    seqgen = generate_inf_sequence(min_len, max_len, dim=dim, batch_size=batch_size, cuda=use_cuda)
     criterion = torch.nn.BCELoss()
     opt = torch.optim.Adam(ntm.parameters(), lr=lr)
 
@@ -65,6 +68,7 @@ if __name__ == "__main__":
 
         opt.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm(ntm.parameters(), 10)
         opt.step()
         if nb_samples > 2000000:
             break

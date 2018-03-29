@@ -10,7 +10,7 @@ class Controller(nn.Module):
         self.output_layer = nn.Linear(M, out_size)
 
     def forward(self, x):
-        h = self.layer(x)
+        h = F.elu(self.layer(x))
         return h
 
     def compute_output(self, r):

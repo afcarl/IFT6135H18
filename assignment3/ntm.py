@@ -4,8 +4,8 @@ import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Variable
 
-from assignment3.controller import Controller
-from assignment3.head import Head
+from controller import Controller
+from head import Head
 
 
 def circular_conv(w, s):
@@ -30,7 +30,7 @@ class NTM(nn.Module):
         self.M = M
         self.eps = 1e-8
         self.memory = None
-        self.memory_bias = Variable(torch.randn(1, N, M).cuda(), \
+        self.memory_bias = Variable(torch.randn(1, N, M), \
                                     requires_grad=True) / np.sqrt(N)
 
     def reset(self):
@@ -40,7 +40,7 @@ class NTM(nn.Module):
 
     def read(self):
         r = torch.bmm(self.read_head.attention.unsqueeze(1), self.memory)
-        return r.squeeze()
+        return r.view(self.batch_size, -1)
 
     def write(self, e, a):
         tilde_memory = self.memory * (1 - self.write_head.attention.unsqueeze(2) * e.unsqueeze(1))
