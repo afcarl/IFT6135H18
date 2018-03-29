@@ -1,5 +1,6 @@
 import datetime
 
+import ipdb
 import torch
 from ntm import NTM
 from sequence_generator import *
@@ -16,7 +17,7 @@ if __name__ == "__main__":
     M = 20
     N = 128
     lr = 1e-4
-    lstm = False
+    lstm = True
 
     cuda = torch.cuda.is_available()
 

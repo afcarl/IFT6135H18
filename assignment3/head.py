@@ -16,8 +16,8 @@ class Head(nn.Module):
         self.erase_layer = nn.Linear(100, M)
         self.add_layer = nn.Linear(100, M)
         self.attention = None
-        self.attention_score_bias = nn.Parameter(
-            torch.randn(1, N)) / np.sqrt(N)
+        self.register_parameter('attention_score_bias', nn.Parameter(
+            torch.randn(1, N) / np.sqrt(N)))
         self.batch_size = batch_size
 
     def compute_attention_params(self, h):

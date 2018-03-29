@@ -28,8 +28,10 @@ class LSTMController(nn.Module):
         self.batch_size = batch_size
 
         self.lstm = nn.LSTMCell(in_size, 100)
-        self.hidden_bias = nn.Parameter(torch.zeros(1, 100))
-        self.cell_bias = nn.Parameter(torch.zeros(1, 100))
+        self.register_parameter('hidden_bias',
+                nn.Parameter(torch.zeros(1, 100)))
+        self.register_parameter('cell_bias',
+                nn.Parameter(torch.zeros(1, 100)))
         self.hidden_state = None
         self.cell_state = None
 
