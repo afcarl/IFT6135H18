@@ -1,11 +1,10 @@
 import datetime
 
-import ipdb
 import torch
+import torch.nn.functional as F
 from ntm import NTM
 from sequence_generator import *
 from torch.autograd import Variable
-import torch.nn.functional as F
 
 tb_plot = True
 

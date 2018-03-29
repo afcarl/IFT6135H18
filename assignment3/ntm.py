@@ -1,10 +1,9 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch import nn
-
 from controller import FeedForwardController, LSTMController
 from head import Head
+from torch import nn
 
 
 def circular_conv(w, s):
@@ -34,8 +33,8 @@ class NTM(nn.Module):
         self.M = M
         self.eps = 1e-8
         self.memory = None
-        self.register_parameter('memory_bias',nn.Parameter(torch.randn(1, N, M)/ np.sqrt(N))
-                )
+        self.register_parameter('memory_bias',
+                                nn.Parameter(torch.randn(1, N, M) / np.sqrt(N)))
 
     def reset(self):
         self.controller.reset()
@@ -82,5 +81,3 @@ class NTM(nn.Module):
         r = self.read()
         out = self.controller.compute_output(r)
         return out
-
-

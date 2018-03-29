@@ -1,6 +1,6 @@
 import torch
+import torch.nn.functional  as F
 from torch import nn
-import torch.nn.functional as F
 
 
 class FeedForwardController(nn.Module):
@@ -29,9 +29,9 @@ class LSTMController(nn.Module):
 
         self.lstm = nn.LSTMCell(in_size, 100)
         self.register_parameter('hidden_bias',
-                nn.Parameter(torch.zeros(1, 100)))
+                                nn.Parameter(torch.zeros(1, 100)))
         self.register_parameter('cell_bias',
-                nn.Parameter(torch.zeros(1, 100)))
+                                nn.Parameter(torch.zeros(1, 100)))
         self.hidden_state = None
         self.cell_state = None
 
