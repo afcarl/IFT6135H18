@@ -15,6 +15,7 @@ if __name__ == "__main__":
     M = 10
     N = 32
     lr = 1e-4
+    lstm = True
 
     if tb_plot:
         from tensorboardX import SummaryWriter
@@ -22,7 +23,8 @@ if __name__ == "__main__":
         now = datetime.datetime.now()
         folder = (f'logs/{now.month}_{now.day}/'
                   f'{now.hour}_{now.minute}_{now.second}'
-                  f'_N={N}_M={M}_min_l={min_len}_batch={batch_size}_lr={lr}')
+                  f'_{"LSTM" if lstm else "MLP"}_N={N}_M={M}'
+                  f'_min_l={min_len}_batch={batch_size}_lr={lr}')
         print(folder)
 
         writer = SummaryWriter(log_dir=folder)
@@ -31,25 +33,28 @@ if __name__ == "__main__":
 
     input_zero = Variable(torch.zeros(batch_size, dim + 1)).cuda()
 
-    ntm = NTM(N, M, dim + 1, dim + 1, batch_size=batch_size)
+    ntm = NTM(N, M, dim + 1, dim, batch_size=batch_size, lstm=lstm)
     ntm.cuda()
 
-    criterion = torch.nn.BCELoss()
+    criterion = torch.nn.BCEWithLogitsLoss()
     opt = torch.optim.Adam(ntm.parameters(), lr=lr)
 
     nb_samples = 0
     for step, inp, out in seqgen:
+
         nb_samples += batch_size
-        loss = 0
+
         ntm.reset()
+
+        loss = 0
         acc = 0
         for i in range(inp.size(0)):
             ntm.send(inp[i])
 
         for i in range(inp.size(0) - 1):
             x = ntm.receive(input_zero)
-            loss += criterion(x[:, :-1], out[i])
-            acc += (x[:, :-1].round() == out[i]).float().mean()[0]
+            loss += criterion(x, out[i])
+            acc += (x.round() == out[i]).float().mean()[0]
 
         meanloss = loss.data[0] / out.size(0)
         meanacc = acc.data[0] / out.size(0)

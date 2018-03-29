@@ -4,8 +4,8 @@ import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Variable
 
-from assignment3.controller import Controller
-from assignment3.head import Head
+from controller import FeedForwardController, LSTMController
+from head import Head
 
 
 def circular_conv(w, s):
@@ -22,7 +22,12 @@ class NTM(nn.Module):
 
     def __init__(self, N, M, in_size, out_size, batch_size, lstm=False):
         super(NTM, self).__init__()
-        self.controller = Controller(in_size, M, out_size, lstm)
+
+        if lstm:
+            self.controller = LSTMController(in_size, out_size, M)
+        else:
+            self.controller = FeedForwardController(in_size, out_size, M)
+
         self.read_head = Head(batch_size, N, M)
         self.write_head = Head(batch_size, N, M)
         self.batch_size = batch_size
@@ -30,10 +35,11 @@ class NTM(nn.Module):
         self.M = M
         self.eps = 1e-8
         self.memory = None
-        self.memory_bias = Variable(torch.randn(1, N, M).cuda(), \
+        self.memory_bias = Variable(torch.randn(1, N, M).cuda(),
                                     requires_grad=True) / np.sqrt(N)
 
     def reset(self):
+        self.controller.reset()
         self.memory = self.memory_bias.repeat(self.batch_size, 1, 1).clone()
         self.write_head.reset()
         self.read_head.reset()
