@@ -4,7 +4,7 @@ import numpy
 import torch
 
 
-def generate_inf_sequence(min_len, max_len, dim=8, batch_size=1, cuda=True):
+def generate_inf_sequence(min_len, max_len, cuda, dim=8, batch_size=1):
     """Generate batches of sequences of 8 bits ad infinitum.
 
     In fact there are 9 bits in the input because the last bit stands for the end of sentence.

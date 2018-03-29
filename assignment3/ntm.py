@@ -35,14 +35,16 @@ class NTM(nn.Module):
         self.M = M
         self.eps = 1e-8
         self.memory = None
-        self.memory_bias = Variable(torch.randn(1, N, M).cuda(),
+        self.memory_bias = Variable(torch.randn(1, N, M),
                                     requires_grad=True) / np.sqrt(N)
 
-    def reset(self):
-        self.controller.reset()
+    def reset(self, cuda):
+        self.controller.reset(cuda)
         self.memory = self.memory_bias.repeat(self.batch_size, 1, 1).clone()
-        self.write_head.reset()
-        self.read_head.reset()
+        if cuda:
+            self.memory = self.memory.cuda()
+        self.write_head.reset(cuda)
+        self.read_head.reset(cuda)
 
     def read(self):
         r = torch.bmm(self.read_head.attention.unsqueeze(1), self.memory)

@@ -17,6 +17,8 @@ if __name__ == "__main__":
     lr = 1e-4
     lstm = True
 
+    cuda = True
+
     if tb_plot:
         from tensorboardX import SummaryWriter
 
@@ -29,12 +31,14 @@ if __name__ == "__main__":
 
         writer = SummaryWriter(log_dir=folder)
 
-    seqgen = generate_inf_sequence(min_len, max_len, dim=dim, batch_size=batch_size)
+    seqgen = generate_inf_sequence(min_len, max_len, dim=dim, batch_size=batch_size, cuda=cuda)
 
-    input_zero = Variable(torch.zeros(batch_size, dim + 1)).cuda()
-
+    input_zero = Variable(torch.zeros(batch_size, dim + 1))
     ntm = NTM(N, M, dim + 1, dim, batch_size=batch_size, lstm=lstm)
-    ntm.cuda()
+
+    if cuda:
+        input_zero = input_zero.cuda()
+        ntm = ntm.cuda()
 
     criterion = torch.nn.BCEWithLogitsLoss()
     opt = torch.optim.Adam(ntm.parameters(), lr=lr)
@@ -44,7 +48,7 @@ if __name__ == "__main__":
 
         nb_samples += batch_size
 
-        ntm.reset()
+        ntm.reset(cuda)
 
         loss = 0
         acc = 0

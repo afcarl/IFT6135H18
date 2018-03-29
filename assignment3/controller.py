@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from torch.autograd import Variable
 
 
 class FeedForwardController(nn.Module):
@@ -15,7 +16,7 @@ class FeedForwardController(nn.Module):
     def compute_output(self, read):
         return self.out_net(read)
 
-    def reset(self):
+    def reset(self, cuda):
         pass
 
 
@@ -23,9 +24,12 @@ class LSTMController(nn.Module):
 
     def __init__(self, in_size, out_size, M):
         super(LSTMController, self).__init__()
+
         self.lstm = nn.LSTMCell(in_size, 100)
-        self.hidden_state = nn.Parameter(torch.zeros(1, 100).cuda())
-        self.cell_state = nn.Parameter(torch.zeros(1, 100).cuda())
+        self.hidden_state = None
+        self.cell_state = None
+        self.reset(cuda=False)
+
         self.out_net = nn.Linear(M, out_size)
 
     def forward(self, x):
@@ -33,9 +37,12 @@ class LSTMController(nn.Module):
             x, (self.hidden_state, self.cell_state))
         return self.hidden_state
 
-    def compute_out(self, read):
+    def compute_output(self, read):
         return self.out_net(read)
 
-    def reset(self):
-        self.hidden_state = nn.Parameter(torch.zeros(1, 100).cuda())
-        self.cell_state = nn.Parameter(torch.zeros(1, 100).cuda())
+    def reset(self, cuda):
+        self.hidden_state = Variable(torch.zeros(1, 100))
+        self.cell_state = Variable(torch.zeros(1, 100))
+        if cuda:
+            self.hidden_state = self.hidden_state.cuda()
+            self.cell_state = self.cell_state.cuda()
