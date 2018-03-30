@@ -38,7 +38,7 @@ class NTM(nn.Module):
 
     def reset(self):
         self.controller.reset()
-        self.memory = self.memory_bias.repeat(self.batch_size, 1, 1).clone()
+        self.memory = self.memory_bias.repeat(self.batch_size, 1, 1)
         self.write_head.reset()
         self.read_head.reset()
 

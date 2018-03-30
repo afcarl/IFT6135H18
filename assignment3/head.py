@@ -35,5 +35,5 @@ class Head(nn.Module):
         return e, a
 
     def reset(self):
-        self.attention = F.softmax(self.attention_score_bias.clone(),
+        self.attention = F.softmax(self.attention_score_bias,
                                    dim=1).repeat(self.batch_size, 1)
