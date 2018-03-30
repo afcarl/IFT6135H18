@@ -6,6 +6,8 @@ from torch.autograd import Variable
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
+from tensorboardX import SummaryWriter
+import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--lr")
@@ -48,7 +50,7 @@ def generate_sequences_fixed_length(nb_batches, length=10, mini_batch_size=10):
 class RNN(nn.Module):
     def __init__(self, input_size=9, hidden_size=100, output_size=9):
         super(RNN, self).__init__()
-        MAX = 1024
+        MAX = 4000
         EOS = torch.from_numpy(np.array(8 * [0] + [1])).float()
         self.hidden_size = hidden_size
         self.LSTM = nn.LSTMCell(input_size, hidden_size)
@@ -56,8 +58,8 @@ class RNN(nn.Module):
         self.activation = functional.sigmoid
         self.hidden_state0 = Parameter(torch.zeros(1, hidden_size)).float()
         self.cell_state0 = Parameter(torch.zeros(1, hidden_size)).float()
-        # self.zero_vector = Parameter(torch.zeros(MAX, 9)).float()
-        self.zero_vector = Parameter(EOS.expand(MAX, 9))
+        self.zero_vector = Parameter(torch.zeros(MAX, 9)).float()
+        # self.zero_vector = Parameter(EOS.expand(MAX, 9))
 
     def step(self, input_vector, hidden_state, cell_state):
         hidden_state, cell_state = self.LSTM(input_vector, (hidden_state, cell_state))
@@ -84,7 +86,7 @@ class RNN(nn.Module):
 criterion = torch.nn.BCELoss()
 rnn = RNN()
 optimizer = torch.optim.Adam(rnn.parameters(), lr=lr)
-print_every = 25
+print_every = 100
 if cuda:
     print('Using CUDA')
     rnn = rnn.cuda()
@@ -96,12 +98,19 @@ running_losses = []
 lossfct = functional.binary_cross_entropy
 
 running_loss = 0.0
+now = datetime.datetime.now()
+folder = (f'logs/{now.month:0>2}_{now.day:0>2}/'
+                  f'{now.hour:0>2}_{now.minute:0>2}_{now.second:0>2}'
+                  f'_vanillaLSTM'
+                  f'_min_l=1_batch={minibatch_size}_lr={lr}')
 
 step = -1
+nb_samples = 0
 for minibatch in generate_sequences(n_sequences, 20, minibatch_size):
     step += 1
     if cuda:
         minibatch = minibatch.cuda()
+    nb_samples += minibatch_size
     optimizer.zero_grad()
     outputs = rnn(minibatch)
     loss = lossfct(outputs[:, :, :], minibatch[:, :-1, :], size_average=True)
@@ -119,24 +128,19 @@ for minibatch in generate_sequences(n_sequences, 20, minibatch_size):
 
         accuracies.append(accuracy_approx)
 
+        writer = SummaryWriter(log_dir=folder)
+
+        writer.add_scalar('Loss', running_loss, nb_samples)
+        writer.add_scalar('Accuracy', accuracy_approx, nb_samples)
+
         print(f'Step: {step + 1:<9}'
               f'Loss: {running_loss:<10.4f}'
               f'Accuracy: {accuracy_approx:<10.4f}'
               f'Accuracy 20: {accuracy_per_seqlength[-1]:<10.4f}')
 
-plt.clf()
-plt.subplot(1, 3, 1)
-plt.plot(running_losses)
-plt.ylabel("running_loss")
-plt.subplot(1, 3, 2)
-plt.plot(accuracies)
-plt.ylabel("accuracy")
-plt.subplot(1, 3, 3)
-plt.plot(accuracy_per_seqlength)
-plt.ylabel("accuracy per seqlength")
-plt.gcf().set_size_inches((18, 6))
+
 import pickle
 pickle.dump({'losses': running_losses,
              'accuracies': accuracies,
              'accuracy_per_seqlength': accuracy_per_seqlength},
-            open(f''))
+            open('results_0_{0}_{1}.pkl'.format(lr, minibatch_size), 'wb'))
