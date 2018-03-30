@@ -22,19 +22,23 @@ def generate_inf_sequence(min_len, max_len, cuda, dim=8, batch_size=1):
 
         seq_len = random.randint(min_len, max_len)
 
-        # Make the sequence longer by 1 on the 1st and 3rd dimensions to append the EOS
-        seq = (numpy.random.rand(seq_len + 1, batch_size, dim + 1) > 0.5).astype(numpy.float32)
-
-        # Define the End Of Sequence character
-        seq[-1] = 0
-        seq[:, :, -1] = 0
-        seq[-1, :, -1] = 1
-
-        in_seq = torch.autograd.Variable(torch.from_numpy(seq))
-        out_seq = torch.autograd.Variable(torch.from_numpy(seq[:-1, :, :-1]))
-
-        if cuda:
-            in_seq = in_seq.cuda()
-            out_seq = out_seq.cuda()
+        in_seq = create_sequence(seq_len, batch_size, cuda, dim=dim)
+        out_seq = in_seq.clone()[:-1, :, :-1]
 
         yield batch_id, in_seq, out_seq
+
+
+def create_sequence(seq_len, batch_size, cuda, dim=8):
+    """Return batch_size sequences of a given length."""
+    # Make the sequence longer by 1 on the 1st and 3rd dimensions to append the EOS
+    seq = (numpy.random.rand(seq_len + 1, batch_size, dim + 1) > 0.5).astype(numpy.float32)
+
+    # Define the End Of Sequence character
+    seq[-1] = 0
+    seq[:, :, -1] = 0
+    seq[-1, :, -1] = 1
+
+    seq = torch.autograd.Variable(torch.from_numpy(seq))
+    if cuda:
+        seq = seq.cuda()
+    return seq
