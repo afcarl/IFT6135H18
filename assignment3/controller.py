@@ -46,5 +46,5 @@ class LSTMController(nn.Module):
         return self.out_net(read)
 
     def reset(self):
-        self.hidden_state = self.hidden_bias.repeat(self.batch_size, 1)
-        self.cell_state = self.cell_bias.repeat(self.batch_size, 1)
+        self.hidden_state = self.hidden_bias.clone().repeat(self.batch_size, 1)
+        self.cell_state = self.cell_bias.clone().repeat(self.batch_size, 1)
