@@ -7,6 +7,6 @@ echo Running on $HOSTNAME
 source activate deep
 for mb in 1 2 4 10 20 50 100 200 500 1000 2000
 do
-python ../LSTMmain.py --lr 1e-4 --minibatchsize $mb
+python ../LSTMmain.py --lr 1e-3 --minibatchsize $mb
 done
 done

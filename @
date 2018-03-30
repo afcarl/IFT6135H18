@@ -1,0 +1,6 @@
+.idea/
+logs/
+.ipynb_checkpoints/
+*__pycache__*
+assignment3/sbatch
+assignment3/results
