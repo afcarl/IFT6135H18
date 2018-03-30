@@ -8,6 +8,21 @@ from torch.autograd import Variable
 
 tb_plot = True
 
+
+def product(iterable):
+    ans = 1
+    for i in iterable:
+        ans *= i
+    return ans
+
+
+def model_size(model):
+    ans = 0
+    for param in model.named_parameters():
+        ans += product(param[1].size())
+    return ans
+
+
 if __name__ == "__main__":
     batch_size = 1
     dim = 8
@@ -16,8 +31,8 @@ if __name__ == "__main__":
     M = 20
     N = 128
     lr = 1e-4
-    attention_period = 1000
-    lstm = False
+    attention_period = 500
+    lstm = True
 
     cuda = torch.cuda.is_available()
 
@@ -37,6 +52,8 @@ if __name__ == "__main__":
 
     input_zero = Variable(torch.zeros(batch_size, dim + 1))
     ntm = NTM(N, M, dim + 1, dim, batch_size=batch_size, lstm=lstm)
+    ntm.reset()
+    print(f"Model size: {model_size(ntm)}")
 
     if cuda:
         print("Using cuda.")
@@ -81,7 +98,8 @@ if __name__ == "__main__":
         opt.step()
 
         if step % attention_period == 0:
-            inp = create_sequence(seq_len=20, batch_size=1, cuda=cuda)
+            attention = []
+            inp = create_sequence(seq_len=100, batch_size=1, cuda=cuda)
             for i in range(inp.size(0)):
                 ntm.send(inp[i])
                 attention.append(ntm.write_head.attention)
@@ -89,8 +107,9 @@ if __name__ == "__main__":
                 x = ntm.receive(input_zero)
                 attention.append(ntm.read_head.attention)
 
-            attention = torch.from_numpy(attention)
-            attention = attention.squeeze(1)  # remove the batch axis
+            attention = torch.stack(attention, dim=0)
+            # remove the batch axis and set the sequence on the x axis
+            attention = attention.squeeze().transpose(0, 1)
             writer.add_image('Attention', attention, step)
 
         if nb_samples > 2000000:
