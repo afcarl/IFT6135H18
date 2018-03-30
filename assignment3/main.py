@@ -1,6 +1,5 @@
 import datetime
 
-import ipdb
 import torch
 import torch.nn.functional as F
 from ntm import NTM
@@ -17,7 +16,8 @@ if __name__ == "__main__":
     M = 20
     N = 128
     lr = 1e-4
-    lstm = True
+    attention_period = 1000
+    lstm = False
 
     cuda = torch.cuda.is_available()
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
         for i in range(inp.size(0)):
             ntm.send(inp[i])
 
-        for i in range(inp.size(0) - 1):
+        for i in range(out.size(0)):
             x = ntm.receive(input_zero)
             loss += criterion(x, out[i])
             acc += (F.sigmoid(x).round() == out[i]).float().mean()[0]
@@ -79,5 +79,19 @@ if __name__ == "__main__":
         loss.backward()
         torch.nn.utils.clip_grad_norm(ntm.parameters(), 10)
         opt.step()
+
+        if step % attention_period == 0:
+            inp = create_sequence(seq_len=20, batch_size=1, cuda=cuda)
+            for i in range(inp.size(0)):
+                ntm.send(inp[i])
+                attention.append(ntm.write_head.attention)
+            for i in range(inp.size(0) - 1):
+                x = ntm.receive(input_zero)
+                attention.append(ntm.read_head.attention)
+
+            attention = torch.from_numpy(attention)
+            attention = attention.squeeze(1)  # remove the batch axis
+            writer.add_image('Attention', attention, step)
+
         if nb_samples > 2000000:
             break
