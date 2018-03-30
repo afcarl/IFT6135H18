@@ -16,7 +16,7 @@ parser.add_argument("--minibatchsize")
 args = parser.parse_args()
 lr = float(args.lr)
 minibatch_size = int(args.minibatchsize)
-n_sequences = min(20000, int(2e6/minibatch_size))
+n_sequences = min(20000, int(4e6/minibatch_size))
 
 cuda = torch.cuda.is_available()
 
@@ -106,6 +106,8 @@ folder = (f'logs/{now.month:0>2}_{now.day:0>2}/'
 
 step = -1
 nb_samples = 0
+writer = SummaryWriter(log_dir=folder)
+
 for minibatch in generate_sequences(n_sequences, 20, minibatch_size):
     step += 1
     if cuda:
@@ -128,7 +130,6 @@ for minibatch in generate_sequences(n_sequences, 20, minibatch_size):
 
         accuracies.append(accuracy_approx)
 
-        writer = SummaryWriter(log_dir=folder)
 
         writer.add_scalar('Loss', running_loss, nb_samples)
         writer.add_scalar('Accuracy', accuracy_approx, nb_samples)
