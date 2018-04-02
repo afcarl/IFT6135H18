@@ -16,7 +16,7 @@ parser.add_argument("--minibatchsize")
 args = parser.parse_args()
 lr = float(args.lr)
 minibatch_size = int(args.minibatchsize)
-n_sequences = min(20000, int(4e6/minibatch_size))
+n_sequences = min(1.6e5, int(10e6/minibatch_size))
 
 cuda = torch.cuda.is_available()
 
@@ -85,6 +85,7 @@ class RNN(nn.Module):
 
 criterion = torch.nn.BCELoss()
 rnn = RNN()
+#optimizer = torch.optim.RMSprop(rnn.parameters(), lr=lr, momentum=.9, centered=True)
 optimizer = torch.optim.Adam(rnn.parameters(), lr=lr)
 print_every = 100
 if cuda:
@@ -128,7 +129,8 @@ for minibatch in generate_sequences(n_sequences, 20, minibatch_size):
         accuracy_approx = np.mean(accuracy_per_seqlength)
         running_losses.append(running_loss)
 
-        accuracies.append(accuracy_approx)
+        acc = torch.mean(((outputs[:, :, :-1] > .5).float() == minibatch[:, :-1, :-1]).float()).data[0]
+        accuracies.append(acc)
 
 
         writer.add_scalar('Loss', running_loss, nb_samples)
@@ -136,12 +138,22 @@ for minibatch in generate_sequences(n_sequences, 20, minibatch_size):
 
         print(f'Step: {step + 1:<9}'
               f'Loss: {running_loss:<10.4f}'
-              f'Accuracy: {accuracy_approx:<10.4f}'
+              f'Accuracy: {acc:<10.4f}'
               f'Accuracy 20: {accuracy_per_seqlength[-1]:<10.4f}')
 
+for seq_len in (list(range(1, 20)) + list(range(20, 101, 10))):
+    loss = 0
+    accs = []
+    acc = 0
+    inp = list(generate_sequences_fixed_length(1, seq_len, 1000))[0]
+    if cuda:
+        inp = inp.cuda()
+    acc = torch.mean(((rnn(inp[:, :, :])[:, :, :-1] > .5).float() == inp[:, :-1, :-1]).float()).data[0]
+    accs.append(acc)
+    print(f'seq_len: {seq_len:<9}'
+          f'accuracy: {acc:<10.4f}')
 
-import pickle
-pickle.dump({'losses': running_losses,
-             'accuracies': accuracies,
-             'accuracy_per_seqlength': accuracy_per_seqlength},
-            open('results_0_{0}_{1}.pkl'.format(lr, minibatch_size), 'wb'))
+    writer.add_scalar('Final Accuracy vs sequence length', acc, seq_len)
+
+torch.save(rnn, folder+'/lstm.pkl')
+print('Model saved')
