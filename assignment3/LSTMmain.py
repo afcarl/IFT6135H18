@@ -48,7 +48,7 @@ def generate_sequences_fixed_length(nb_batches, length=10, mini_batch_size=10):
 
 
 class RNN(nn.Module):
-    def __init__(self, input_size=9, hidden_size=2560, output_size=9):
+    def __init__(self, input_size=9, hidden_size=100, output_size=9):
         super(RNN, self).__init__()
         MAX = 4000
         EOS = torch.from_numpy(np.array(8 * [0] + [1])).float()
