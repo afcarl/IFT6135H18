@@ -117,7 +117,7 @@ if __name__ == "__main__":
             attention = attention.squeeze().transpose(0, 1)
             writer.add_image('Attention', attention, step)
 
-        if nb_samples > 2000000 or (out.size(0) > 15 and meanloss < 1e-2):
+        if nb_samples > 2000000 or (out.size(0) > 15 and meanloss < 5e-4):
             break
 
     # record the accuracy on different sequence lengths
