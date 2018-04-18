@@ -1,0 +1,7 @@
+.idea/
+.ipynb_checkpoints/
+*__pycache__*
+assignment4/logs
+assignment4/CelebAdata
+assignment4/celebA
+*.sh
