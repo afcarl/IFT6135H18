@@ -1,5 +1,6 @@
-import numpy as np
 import matplotlib
+import numpy as np
+
 matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
@@ -42,7 +43,8 @@ if tb_plot:
     now = datetime.datetime.now()
     folder = (f'logs/{now.month:0>2}_{now.day:0>2}/'
               f'{now.hour:0>2}_{now.minute:0>2}_{now.second:0>2}'
-              f'_{"MNIST" if not args.notmnist else "CelebA"}_encoding={args.encoding_size}_batch={args.batch_size}'
+              f'_{"MNIST" if not args.notmnist else "CelebA"}_encoding={'
+              f'args.encoding_size}_batch={args.batch_size}'
               f'_lr={args.lr}_epochs={args.epochs}_L={args.loss_l}')
 
     print(folder)
@@ -54,12 +56,13 @@ if not args.notmnist:
     download_loc = "/u/lahlosal/data"
 
     transform = transforms.Compose([transforms.ToTensor(),
-                                   ])
+                                    ])
 
     mnist_train = datasets.MNIST(download_loc, train=True, transform=transform)
     mnist_test = datasets.MNIST(download_loc, train=False, transform=transform)
 
-    train_loader = torch.utils.data.DataLoader(mnist_train, batch_size=args.batch_size, shuffle=True)
+    train_loader = torch.utils.data.DataLoader(mnist_train, batch_size=args.batch_size,
+                                               shuffle=True)
     test_loader = torch.utils.data.DataLoader(mnist_test, batch_size=args.batch_size, shuffle=True)
 else:
     datapath = "/u/lahlosal/celebA_small"
@@ -67,8 +70,8 @@ else:
     transform = transforms.Compose([transforms.Resize(64),
                                     transforms.CenterCrop(64),
                                     transforms.ToTensor(),
-                                    #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                                     ])
+                                    # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                                    ])
     train_set = datasets.ImageFolder(root=datapath,
                                      transform=transform)
 
@@ -76,14 +79,14 @@ else:
     nb_train = int(0.8 * len(train_set))
 
     train_loader = torch.utils.data.DataLoader(
-            train_set,
-            sampler=SubsetRandomSampler(np.arange(nb_train)),
-            batch_size=args.batch_size)
+        train_set,
+        sampler=SubsetRandomSampler(np.arange(nb_train)),
+        batch_size=args.batch_size)
 
     test_loader = torch.utils.data.DataLoader(
-            train_set,
-            sampler=SubsetRandomSampler(np.arange(nb_train,len(train_set))),
-            batch_size=args.batch_size)
+        train_set,
+        sampler=SubsetRandomSampler(np.arange(nb_train, len(train_set))),
+        batch_size=args.batch_size)
 
 for tr in train_loader:
     break
@@ -105,7 +108,7 @@ def train(epoch, print_stuff=False, loss_L=1):
     train_loss = 0
     train_nll = 0
     for batch_idx, (data, _) in enumerate(train_loader):
-        data = Variable(data.view(-1,  tr[0].shape[1] * tr[0].shape[2] * tr[0].shape[3]))
+        data = Variable(data.view(-1, tr[0].shape[1] * tr[0].shape[2] * tr[0].shape[3]))
         if cuda:
             data = data.cuda()
         optimizer.zero_grad()
@@ -117,13 +120,13 @@ def train(epoch, print_stuff=False, loss_L=1):
         if print_stuff and batch_idx % 1 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tNLL: {:.4f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader),
+                       100. * batch_idx / len(train_loader),
                 loss.data[0], nll.data[0]))
 
     if args.tb_plot:
         writer_train.add_scalar('Loss',
-                          train_loss / len(train_loader.dataset),
-                          epoch)
+                                train_loss / len(train_loader.dataset),
+                                epoch)
 
     print('====> Epoch: {} Train loss: {:.4f}\tTrain nll: {:.4f}'.format(
         epoch, train_loss / len(train_loader.dataset), train_nll / len(train_loader.dataset)))
@@ -144,12 +147,12 @@ def test(epoch, print_stuff=False):
         if print_stuff and batch_idx % 1000 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tNLL: {.4f}'.format(
                 epoch, batch_idx * len(data), len(test_loader.dataset),
-                100. * batch_idx / len(test_loader),
+                       100. * batch_idx / len(test_loader),
                 loss.data[0], nll))
     if args.tb_plot:
         writer_test.add_scalar('Loss',
-                          test_loss / len(test_loader.dataset),
-                          epoch)
+                               test_loss / len(test_loader.dataset),
+                               epoch)
 
     print('====> Epoch: {} Test loss: {:.4f}\tTest nll: {:.4f}'.format(
         epoch, test_loss / len(test_loader.dataset), test_nll / len(test_loader.dataset)))
@@ -159,8 +162,10 @@ def test(epoch, print_stuff=False):
 
 def show(data, data_recon, out_file):
     fig, axes = plt.subplots(1, 2)
-    img1 = make_grid(data.data.view(-1, tr[0].shape[1], tr[0].shape[2], tr[0].shape[3]), nrow=10).cpu()
-    img2 = make_grid(data_recon.data.view(-1, tr[0].shape[1], tr[0].shape[2], tr[0].shape[3]), nrow=10).cpu()
+    img1 = make_grid(data.data.view(-1, tr[0].shape[1], tr[0].shape[2], tr[0].shape[3]),
+                     nrow=10).cpu()
+    img2 = make_grid(data_recon.data.view(-1, tr[0].shape[1], tr[0].shape[2], tr[0].shape[3]),
+                     nrow=10).cpu()
     npimg1 = img1.numpy()
     npimg2 = img2.numpy()
     axes[0].imshow(np.transpose(npimg1, (1, 2, 0)), interpolation='nearest')
@@ -178,7 +183,6 @@ def save_sample(epoch):
 
 
 save_sample(0)
-
 
 for epoch in range(1, args.epochs + 1):
     data, data_recon = train(epoch, loss_L=args.loss_l)
