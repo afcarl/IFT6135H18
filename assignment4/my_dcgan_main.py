@@ -2,6 +2,7 @@ import argparse
 import datetime
 import os
 import random
+import ipdb
 
 import matplotlib
 import tensorboardX
@@ -22,7 +23,7 @@ from torch.autograd import grad
 from models import _netG, _netD
 from utils import make_interpolation_noise
 
-# from inception_score import inception_score
+from inception_score import inception_score
 
 
 parser = argparse.ArgumentParser()
@@ -299,10 +300,10 @@ for epoch in range(opt.niter):
             # for name, param in netG.named_parameters():
             #     writer.add_histogram(name, param.clone().cpu().data.numpy(), step)
 
-        # if step % 1000 == 0:
-        #     incep_score, _ = inception_score(fake.data)
-        #     print(f'Inception: {incep_score}')
-        #     writer.add_scalar('inception_score', incep_score, global_step=step)
+        if step % 1000 == 0:
+            incep_score, _ = inception_score(fake.data, resize=True)
+            print(f'Inception: {incep_score}')
+            writer.add_scalar('inception_score', incep_score, global_step=step)
 
     # do checkpointing
     if epoch % 5 == 0:
