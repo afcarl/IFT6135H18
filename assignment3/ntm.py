@@ -1,4 +1,5 @@
 import math
+
 import torch
 import torch.nn.functional as F
 from controller import FeedForwardController, LSTMController
@@ -7,6 +8,13 @@ from torch import nn
 
 
 def circular_conv(w, s):
+    """Return the cyclic convolution of w with s.
+
+    :param w: attention weights. 2D array of size batch*N. The first axis index the batch. The
+    second axis index the memory.
+    :param s: shift weights. 2D array of size batch*3. The first axis index the batch. The second
+    axis index the shift.
+    """
     circular_w = torch.cat([w[:, -1].unsqueeze(1), w, w[:, 0].unsqueeze(1)], 1)
     ans = s[:, 2].unsqueeze(1) * circular_w[:, :-2]
     ans = ans + s[:, 1].unsqueeze(1) * circular_w[:, 1:-1]
@@ -14,7 +22,20 @@ def circular_conv(w, s):
     return ans
 
 
-# TODO implement an LSTM controller
+def forward_circular_conv(w, s):
+    """Return the cyclic convolution of w with s, while preventing moving backward..
+
+    :param w: attention weights. 2D array of size batch*N. The first axis index the batch. The
+    second axis index the memory.
+    :param s: shift weights. 2D array of size batch*3. The first axis index the batch. The second
+    axis index the shift.
+    """
+    circular_w = torch.cat([w, w[:, :2].unsqueeze(1)], 1)
+    ans = s[:, 2].unsqueeze(1) * circular_w[:, :-2]
+    ans = ans + s[:, 1].unsqueeze(1) * circular_w[:, 1:-1]
+    ans = ans + s[:, 0].unsqueeze(1) * circular_w[:, 2:]
+    return ans
+
 
 class NTM(nn.Module):
 
