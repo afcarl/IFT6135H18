@@ -144,13 +144,13 @@ if __name__ == "__main__":
                 loss += criterion(x, out[i])
                 acc += (F.sigmoid(x).round() == out[i]).float().mean()[0]
 
-            #meanloss = loss.data[0] / out.size(0) / nb_batches
+        # meanloss = loss.data[0] / out.size(0) / nb_batches
         meanacc = acc.data[0] / out.size(0) / nb_batches
         print(f'seq_len: {seq_len:<9}'
               f'accuracy: {meanacc:<10.4f}')
         if tb_plot:
-            #writer.add_scalar('Final Loss vs sequence length', meanloss, seq_len)
+            # writer.add_scalar('Final Loss vs sequence length', meanloss, seq_len)
             writer.add_scalar('Final Accuracy vs sequence length', meanacc, seq_len)
 
-    torch.save(ntm, folder+'/ntm.pkl')
+    torch.save(ntm, folder + '/ntm.pkl')
     print('Model saved')
