@@ -1,10 +1,11 @@
-from __future__ import print_function
 import argparse
 import datetime
 import os
 import random
-import tensorboardX
+
 import matplotlib
+import tensorboardX
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import torch
@@ -12,7 +13,6 @@ import torch.nn as nn
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
-import torch.nn.functional as F
 import torch.utils.data
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
@@ -21,15 +21,18 @@ from torch.autograd import Variable
 from torch.autograd import grad
 from models import _netG, _netD
 from utils import make_interpolation_noise
-#from inception_score import inception_score
+
+# from inception_score import inception_score
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', default='celebA', help='cifar10 | lsun | imagenet | folder | lfw | fake')
+parser.add_argument('--dataset', default='celebA',
+                    help='cifar10 | lsun | imagenet | folder | lfw | fake')
 parser.add_argument('--dataroot', default='/data/lisa/data/celeba', help='path to dataset')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
-parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
+parser.add_argument('--imageSize', type=int, default=64,
+                    help='the height / width of the input image to network')
 parser.add_argument('--nz', type=int, default=100, help='size of the latent z vector')
 parser.add_argument('--ngf', type=int, default=64)
 parser.add_argument('--ndf', type=int, default=64)
@@ -40,40 +43,34 @@ parser.add_argument('--cuda', action='store_true', help='enables cuda')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
-parser.add_argument('--outf', default='/data/milatmp1/thomasva/gan/logs/dcgan/', help='folder to output images and model checkpoints')
+parser.add_argument('--outf', default='/data/milatmp1/thomasva/gan/logs/dcgan/',
+                    help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--mode', type=str, default='nsgan', metavar='N',
-                    help='type of gan')
-parser.add_argument('--penalty', type=str, default='gp', metavar='N',
-                    help='type of gan')
+                    help='type of gan', choices=['mmgan', 'nsgan', 'lsgan'])
 parser.add_argument('--name', type=str, default='name', metavar='N',
                     help='name of the session')
-parser.add_argument('--lanbda', type=float, default=0e1, help='regularization')
+parser.add_argument('--lanbda', type=float, default=0, help='regularization')
 parser.add_argument('--critic_iter', type=int, default=1, help='number of critic iterations')
-parser.add_argument('--gen_iter', type=int, default=1, help='number of critic iterations')
+parser.add_argument('--gen_iter', type=int, default=1, help='number of generator iterations')
 
 opt = parser.parse_args()
 print(opt)
 
 
+# OUT FOLDER
 now = datetime.datetime.now()
-opt.outf += opt.dataset+'/'+str(now.month)+'_'+str(now.day)
-name = str(now.hour)+'_'+str(now.minute)+'_'+opt.mode+'_'+opt.name
-opt.outf += '/' + name
+opt.outf += opt.dataset + '/' + str(now.month) + '_' + str(now.day)
+opt.outf += '/' + str(now.hour) + '_' + str(now.minute) + '_' + opt.mode + '_' + opt.name
 opt.outf += f'_lambda={opt.lanbda}_citer={opt.critic_iter}_giter={opt.gen_iter}'
-opt.outf += f'_beta1={opt.beta1}'+f'_{opt.penalty}'
+opt.outf += f'_beta1={opt.beta1}'
 
-assert opt.mode in ['mgan', 'nsgan', 'lsgan']
-assert opt.penalty in ['gp', 'e2e', 'dgp', 'lap']
-
-
-print('Outfile:', opt.outf)
-try:
-    os.makedirs(opt.outf)
-except OSError:
-    pass
+print('Outfile: ', opt.outf)
+os.makedirs(opt.outf)
 writer = tensorboardX.SummaryWriter(opt.outf)
 
+
+# SEED
 if opt.manualSeed is None:
     opt.manualSeed = random.randint(1, 10000)
 print("Random Seed: ", opt.manualSeed)
@@ -90,12 +87,12 @@ if torch.cuda.is_available() and not opt.cuda:
 print(f'Loading dataset {opt.dataset} at {opt.dataroot}')
 # folder dataset
 dataset = dset.ImageFolder(root=opt.dataroot,
-                            transform=transforms.Compose([
-                                transforms.Resize(opt.imageSize),
-                                transforms.CenterCrop(opt.imageSize),
-                                transforms.ToTensor(),
-                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                            ]))
+                           transform=transforms.Compose([
+                               transforms.Resize(opt.imageSize),
+                               transforms.CenterCrop(opt.imageSize),
+                               transforms.ToTensor(),
+                               transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                           ]))
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
                                          shuffle=True, num_workers=int(opt.workers))
 print('Dataloader done')
@@ -111,16 +108,19 @@ def gradient_penaltyD(z, f):
     # gradient penalty
     z = Variable(z, requires_grad=True)
     o = f(z)
-    g = grad(o, z, grad_outputs=torch.ones(o.size()).cuda(), create_graph=True, retain_graph=True, only_inputs=True)[0]#.view(z.size(0), -1)
-    gp = ((g.view(z.size(0), -1).norm(p=2, dim=1))**2).mean()
+    g = grad(o, z, grad_outputs=torch.ones(o.size()).cuda(), create_graph=True, retain_graph=True,
+             only_inputs=True)[0]  # .view(z.size(0), -1)
+    gp = ((g.view(z.size(0), -1).norm(p=2, dim=1)) ** 2).mean()
     return gp
+
 
 def plot_images(tag, data, step, nrow=8):
     vutils.save_image(data,
-            opt.outf+'/'+tag+'_step_'+str(step)+'.png',
-            normalize=True, nrow=nrow)
-    im = plt.imread(opt.outf+'/'+tag+'_step_'+str(step)+'.png')
+                      opt.outf + '/' + tag + '_step_' + str(step) + '.png',
+                      normalize=True, nrow=nrow)
+    im = plt.imread(opt.outf + '/' + tag + '_step_' + str(step) + '.png')
     writer.add_image(tag, im, step)
+
 
 # custom weights initialization called on netG and netD
 def weights_init(m):
@@ -130,6 +130,7 @@ def weights_init(m):
     elif classname.find('BatchNorm') != -1:
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
+
 
 netG = _netG(ngpu)
 netD = _netD(ngpu)
@@ -143,7 +144,7 @@ netG.apply(weights_init)
 print(netD)
 print(netG)
 
-#criterion = nn.BCELoss()
+# criterion = nn.BCELoss()
 
 criterion = nn.BCEWithLogitsLoss()
 if opt.mode == 'lsgan':
@@ -192,11 +193,10 @@ for epoch in range(opt.niter):
 
             output = netD(inputv).squeeze()
             errD_real = criterion(output, labelv)
-            #acc_real = sigmoid(output).data.round().mean()
-
+            # acc_real = sigmoid(output).data.round().mean()
 
             gp_real = gradient_penaltyD(inputv.data, netD)
-            (opt.lanbda*gp_real).backward()
+            (opt.lanbda * gp_real).backward()
 
             errD_real.backward()
             f_x = output.data.mean()
@@ -211,10 +211,10 @@ for epoch in range(opt.niter):
             errD_fake = criterion(output, labelv)
 
             gp_fake = gradient_penaltyD(fake.data, netD)
-            (opt.lanbda*gp_fake).backward()
+            (opt.lanbda * gp_fake).backward()
 
             errD_fake.backward()
-            #acc_fake = sigmoid(output).data.round().mean()
+            # acc_fake = sigmoid(output).data.round().mean()
             f_G_z1 = output.data.mean()
             D_G_z1 = sigmoid(output).data.mean()
             errD = errD_real + errD_fake
@@ -224,14 +224,15 @@ for epoch in range(opt.niter):
             ############################
             # (2) Update G network: maximize log(D(G(z)))
             ###########################
-            if k>0:
+            if k > 0:
                 noise.resize_(batch_size, nz, 1, 1).normal_(0, 1)
                 noisev = Variable(noise)
                 fake = netG(noisev)
             netG.zero_grad()
             output = netD(fake).squeeze()
             if opt.mode == 'nsgan':
-                labelv = Variable(label.fill_(real_label))  # fake labels are real for generator cost
+                labelv = Variable(
+                    label.fill_(real_label))  # fake labels are real for generator cost
                 errG = criterion(output, labelv)
             elif opt.mode == 'mgan':
                 labelv = Variable(label.fill_(fake_label))  # minimax objective
@@ -247,22 +248,22 @@ for epoch in range(opt.niter):
 
         if i % 50 == 0:
             print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-                % (epoch, opt.niter, i, len(dataloader),
-                    errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
-            info = {'disc_cost': errD.data[0],\
-                    'gen_cost': errG.data[0],\
+                  % (epoch, opt.niter, i, len(dataloader),
+                     errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
+            info = {'disc_cost': errD.data[0], \
+                    'gen_cost': errG.data[0], \
                     # 'f_x': f_x,\
                     # 'f_G_z1': f_G_z1,\
                     # 'f_G_z2': f_G_z2,\
-                    'D_x': D_x,\
-                    'D_G_z': D_G_z1,\
+                    'D_x': D_x, \
+                    'D_G_z': D_G_z1, \
                     # 'acc_real': acc_real,\
                     # 'acc_fake': acc_fake,\
-                    #'D_G_z2': D_G_z2,\
-                    'logit_dist': f_x - f_G_z1,\
-                    'penalty_real': opt.lanbda*(gp_real).data[0],\
-                    'penalty_fake': opt.lanbda*(gp_fake).data[0],\
-                    'gradient_norm_real': (gp_real).data[0],\
+                    # 'D_G_z2': D_G_z2,\
+                    'logit_dist': f_x - f_G_z1, \
+                    'penalty_real': opt.lanbda * (gp_real).data[0], \
+                    'penalty_fake': opt.lanbda * (gp_fake).data[0], \
+                    'gradient_norm_real': (gp_real).data[0], \
                     'gradient_norm_fake': (gp_fake).data[0]}
 
             for tag, val in info.items():
@@ -295,7 +296,6 @@ for epoch in range(opt.niter):
         #     incep_score, _ = inception_score(fake.data)
         #     print(f'Inception: {incep_score}')
         #     writer.add_scalar('inception_score', incep_score, global_step=step)
-
 
     # do checkpointing
     if epoch % 5 == 0:

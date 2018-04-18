@@ -1,13 +1,6 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import torch
 import torch.nn as nn
-from torch.nn.parameter import Parameter
-from torch.autograd import Variable
-import torch.optim as optim
 import torch.nn.functional as F
-from torchvision import datasets, transforms
-from torchvision.utils import save_image, make_grid
+from torch.autograd import Variable
 
 
 class VAE(nn.Module):
@@ -50,7 +43,9 @@ class VAE(nn.Module):
         mu, logsigma = self.encode(x)
         sigma = logsigma.exp()
 
-        loss_1 = .5 * (self.encoding_size + logsigma.mul(2).sum(dim=1) - mu.pow(2).sum(dim=1) - sigma.pow(2).sum(dim=1))
+        loss_1 = .5 * (
+                self.encoding_size + logsigma.mul(2).sum(dim=1) - mu.pow(2).sum(dim=1) - sigma.pow(
+            2).sum(dim=1))
         # loss_1 is now a vector of size batch_size
         loss_1 = loss_1.mean()
 
