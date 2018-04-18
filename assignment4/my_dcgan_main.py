@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import argparse
 import datetime
 import os
@@ -49,35 +47,30 @@ parser.add_argument('--outf', default='/data/milatmp1/thomasva/gan/logs/dcgan/',
                     help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--mode', type=str, default='nsgan', metavar='N',
-                    help='type of gan')
-parser.add_argument('--penalty', type=str, default='gp', metavar='N',
-                    help='type of gan')
+                    help='type of gan', choices=['mmgan', 'nsgan', 'lsgan'])
 parser.add_argument('--name', type=str, default='name', metavar='N',
                     help='name of the session')
-parser.add_argument('--lanbda', type=float, default=0e1, help='regularization')
+parser.add_argument('--lanbda', type=float, default=0, help='regularization')
 parser.add_argument('--critic_iter', type=int, default=1, help='number of critic iterations')
-parser.add_argument('--gen_iter', type=int, default=1, help='number of critic iterations')
+parser.add_argument('--gen_iter', type=int, default=1, help='number of generator iterations')
 
 opt = parser.parse_args()
 print(opt)
 
+
+# OUT FOLDER
 now = datetime.datetime.now()
 opt.outf += opt.dataset + '/' + str(now.month) + '_' + str(now.day)
-name = str(now.hour) + '_' + str(now.minute) + '_' + opt.mode + '_' + opt.name
-opt.outf += '/' + name
+opt.outf += '/' + str(now.hour) + '_' + str(now.minute) + '_' + opt.mode + '_' + opt.name
 opt.outf += f'_lambda={opt.lanbda}_citer={opt.critic_iter}_giter={opt.gen_iter}'
-opt.outf += f'_beta1={opt.beta1}' + f'_{opt.penalty}'
+opt.outf += f'_beta1={opt.beta1}'
 
-assert opt.mode in ['mgan', 'nsgan', 'lsgan']
-assert opt.penalty in ['gp', 'e2e', 'dgp', 'lap']
-
-print('Outfile:', opt.outf)
-try:
-    os.makedirs(opt.outf)
-except OSError:
-    pass
+print('Outfile: ', opt.outf)
+os.makedirs(opt.outf)
 writer = tensorboardX.SummaryWriter(opt.outf)
 
+
+# SEED
 if opt.manualSeed is None:
     opt.manualSeed = random.randint(1, 10000)
 print("Random Seed: ", opt.manualSeed)
