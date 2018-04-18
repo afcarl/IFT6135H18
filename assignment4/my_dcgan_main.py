@@ -232,6 +232,7 @@ for epoch in range(opt.niter):
                 noise.resize_(batch_size, nz, 1, 1).normal_(0, 1)
                 noisev = Variable(noise)
                 fake = netG(noisev)
+
             netG.zero_grad()
             output = netD(fake).squeeze()
             if opt.mode == 'nsgan':  # non-saturating gan
@@ -263,9 +264,9 @@ for epoch in range(opt.niter):
                     # 'f_G_z2': f_G_z2,\
                     'D_x': D_x, \
                     'D_G_z': D_G_z1, \
-                    # 'acc_real': acc_real,\
-                    # 'acc_fake': acc_fake,\
                     # 'D_G_z2': D_G_z2,\
+                    'acc_real': acc_real,\
+                    'acc_fake': acc_fake,\
                     'logit_dist': f_x - f_G_z1, \
                     'penalty_real': opt.lanbda * (gp_real).data[0], \
                     'penalty_fake': opt.lanbda * (gp_fake).data[0], \
