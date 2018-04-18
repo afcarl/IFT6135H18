@@ -58,7 +58,6 @@ parser.add_argument('--gen_iter', type=int, default=1, help='number of generator
 opt = parser.parse_args()
 print(opt)
 
-
 # OUT FOLDER
 now = datetime.datetime.now()
 opt.outf += opt.dataset + '/' + str(now.month) + '_' + str(now.day)
@@ -69,7 +68,6 @@ opt.outf += f'_beta1={opt.beta1}'
 print('Outfile: ', opt.outf)
 os.makedirs(opt.outf)
 writer = tensorboardX.SummaryWriter(opt.outf)
-
 
 # SEED
 if opt.manualSeed is None:
@@ -145,17 +143,22 @@ netG.apply(weights_init)
 print(netD)
 print(netG)
 
-# criterion = nn.BCELoss()
-
 criterion = nn.BCEWithLogitsLoss()
 if opt.mode == 'lsgan':
     criterion = nn.MSELoss()
 
 sigmoid = nn.Sigmoid()
 
+# real images
 input = torch.FloatTensor(opt.batchSize, 3, opt.imageSize, opt.imageSize)
+
+# input noise for the generator
 noise = torch.FloatTensor(opt.batchSize, nz, 1, 1)
+
+# input noise to plot samples
 fixed_noise = torch.FloatTensor(opt.batchSize, nz, 1, 1).normal_(0, 1)
+
+# labels
 label = torch.FloatTensor(opt.batchSize)
 real_label = 1
 fake_label = 0
@@ -175,7 +178,7 @@ optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
 step = 0
 for epoch in range(opt.niter):
-    for i, data in enumerate(dataloader, 0):
+    for i, data in enumerate(dataloader):
         step += 1
         for _ in range(opt.critic_iter):
             ############################
@@ -194,7 +197,7 @@ for epoch in range(opt.niter):
 
             output = netD(inputv).squeeze()
             errD_real = criterion(output, labelv)
-            # acc_real = sigmoid(output).data.round().mean()
+            acc_real = sigmoid(output).data.round().mean()
 
             gp_real = gradient_penaltyD(inputv.data, netD)
             (opt.lanbda * gp_real).backward()
@@ -206,8 +209,9 @@ for epoch in range(opt.niter):
             # train with fake
             noise.resize_(batch_size, nz, 1, 1).normal_(0, 1)
             noisev = Variable(noise)
-            fake = netG(noisev)
             labelv = Variable(label.fill_(fake_label))
+
+            fake = netG(noisev)
             output = netD(fake.detach()).squeeze()
             errD_fake = criterion(output, labelv)
 
@@ -215,7 +219,7 @@ for epoch in range(opt.niter):
             (opt.lanbda * gp_fake).backward()
 
             errD_fake.backward()
-            # acc_fake = sigmoid(output).data.round().mean()
+            acc_fake = 1 - sigmoid(output).data.round().mean()
             f_G_z1 = output.data.mean()
             D_G_z1 = sigmoid(output).data.mean()
             errD = errD_real + errD_fake
@@ -231,15 +235,17 @@ for epoch in range(opt.niter):
                 fake = netG(noisev)
             netG.zero_grad()
             output = netD(fake).squeeze()
-            if opt.mode == 'nsgan':
-                labelv = Variable(
-                    label.fill_(real_label))  # fake labels are real for generator cost
+            if opt.mode == 'nsgan':  # non-saturating gan
+                # use the real labels (1) for generator cost
+                labelv = Variable(label.fill_(real_label))
                 errG = criterion(output, labelv)
-            elif opt.mode == 'mmgan':
-                labelv = Variable(label.fill_(fake_label))  # minimax objective
+            elif opt.mode == 'mmgan':  # minimax gan
+                # use fake labels and opposite of criterion
+                labelv = Variable(label.fill_(fake_label))
                 errG = - criterion(output, labelv)
-            elif opt.mode == 'lsgan':
-                labelv = Variable(label.fill_(real_label))  # minimax objective
+            elif opt.mode == 'lsgan':  # least square gan NOT WORKING
+                # use real labels for generator
+                labelv = Variable(label.fill_(real_label))
                 errG = criterion(output, labelv)
 
             errG.backward()
