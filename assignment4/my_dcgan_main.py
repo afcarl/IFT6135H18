@@ -147,7 +147,7 @@ print(netG)
 
 criterion = nn.BCEWithLogitsLoss()
 if opt.mode == 'lsgan':
-    criterion = lambda output, target : ((output-target)**2).sum()
+    criterion = nn.MSELoss()
 
 sigmoid = nn.Sigmoid()
 
