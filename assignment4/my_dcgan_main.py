@@ -144,8 +144,6 @@ netG.apply(weights_init)
 print(netD)
 print(netG)
 
-# criterion = nn.BCELoss()
-
 criterion = nn.BCEWithLogitsLoss()
 if opt.mode == 'lsgan':
     criterion = lambda output, target: ((output - target) ** 2).sum()
@@ -174,7 +172,7 @@ optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
 step = 0
 for epoch in range(opt.niter):
-    for i, data in enumerate(dataloader, 0):
+    for i, data in enumerate(dataloader):
         step += 1
         for _ in range(opt.critic_iter):
             ############################
@@ -193,7 +191,7 @@ for epoch in range(opt.niter):
 
             output = netD(inputv).squeeze()
             errD_real = criterion(output, labelv)
-            # acc_real = sigmoid(output).data.round().mean()
+            acc_real = sigmoid(output).data.round().mean()
 
             gp_real = gradient_penaltyD(inputv.data, netD)
             (opt.lanbda * gp_real).backward()
