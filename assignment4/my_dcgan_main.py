@@ -1,8 +1,8 @@
 import argparse
 import datetime
+import getpass
 import os
 import random
-import ipdb
 
 import matplotlib
 import tensorboardX
@@ -20,11 +20,10 @@ import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
 from torch.autograd import grad
-from models import _netG, _netD
+from models import _netG, _netD, _netG_upsample
 from utils import make_interpolation_noise
 
 from inception_score import inception_score, mode_score
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', default='celebA',
@@ -40,30 +39,38 @@ parser.add_argument('--ndf', type=int, default=64)
 parser.add_argument('--niter', type=int, default=150, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
-parser.add_argument('--cuda', action='store_true', help='enables cuda')
 parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
-parser.add_argument('--outf', default='/data/milatmp1/thomasva/gan/logs/dcgan/',
+parser.add_argument('--outf', default='gan/logs/dcgan/',
                     help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--mode', type=str, default='nsgan', metavar='N',
                     help='type of gan', choices=['mmgan', 'nsgan', 'lsgan'])
+parser.add_argument('--upsample', type=str, default='convtranspose',
+                    choices=['convtranspose', 'nearest', 'bilinear'],
+                    help='Method used in the generator to upsample images.')
 parser.add_argument('--name', type=str, default='name', metavar='N',
                     help='name of the session')
-parser.add_argument('--lanbda', type=float, default=0, help='regularization')
+parser.add_argument('--lanbda', type=float, default=.5, help='regularization')
 parser.add_argument('--critic_iter', type=int, default=1, help='number of critic iterations')
 parser.add_argument('--gen_iter', type=int, default=1, help='number of generator iterations')
 
 opt = parser.parse_args()
 print(opt)
 
+# CUDA
+cudnn.benchmark = True
+if torch.cuda.is_available():
+    opt.cuda = True
+
 # OUT FOLDER
+opt.outf = f'/data/milatmp1/{getpass.getuser()}/' + opt.outf
 now = datetime.datetime.now()
 opt.outf += opt.dataset + '/' + str(now.month) + '_' + str(now.day)
 opt.outf += '/' + str(now.hour) + '_' + str(now.minute) + '_' + opt.mode + '_' + opt.name
 opt.outf += f'_lambda={opt.lanbda}_citer={opt.critic_iter}_giter={opt.gen_iter}'
-opt.outf += f'_beta1={opt.beta1}'
+opt.outf += f'_beta1={opt.beta1}_upsample={opt.upsample}'
 
 print('Outfile: ', opt.outf)
 os.makedirs(opt.outf)
@@ -78,11 +85,7 @@ torch.manual_seed(opt.manualSeed)
 if opt.cuda:
     torch.cuda.manual_seed_all(opt.manualSeed)
 
-cudnn.benchmark = True
-
-if torch.cuda.is_available() and not opt.cuda:
-    print("WARNING: You have a CUDA device, so you should probably run with --cuda")
-
+# DATA
 print(f'Loading dataset {opt.dataset} at {opt.dataroot}')
 # folder dataset
 dataset = dset.ImageFolder(root=opt.dataroot,
@@ -96,6 +99,7 @@ dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
                                          shuffle=True, num_workers=int(opt.workers))
 print('Dataloader done')
 
+# HYPER PARAMETERS
 ngpu = int(opt.ngpu)
 nz = int(opt.nz)
 ngf = int(opt.ngf)
@@ -114,6 +118,7 @@ def gradient_penaltyD(z, f):
 
 
 def plot_images(tag, data, step, nrow=8):
+    """Save mosaic of images to Tensorboard."""
     vutils.save_image(data,
                       opt.outf + '/' + tag + '_step_' + str(step) + '.png',
                       normalize=True, nrow=nrow)
@@ -131,15 +136,21 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 
-netG = _netG(ngpu)
+# INITIALIZE MODELS
+if opt.upsample == 'convtranspose':
+    netG = _netG(ngpu)
+else:
+    netG = _netG_upsample(ngpu, opt.upsample)
 netD = _netD(ngpu)
 netD.apply(weights_init)
 netG.apply(weights_init)
 
-# if opt.netD != '':
-#     netD.load_state_dict(torch.load(opt.netD))
-# if opt.netG != '':
-#     netG.load_state_dict(torch.load(opt.netG))
+# Reload past models for a warm start
+if opt.netD != '':
+    netD.load_state_dict(torch.load(opt.netD))
+if opt.netG != '':
+    netG.load_state_dict(torch.load(opt.netG))
+
 print(netD)
 print(netG)
 
@@ -266,8 +277,8 @@ for epoch in range(opt.niter):
                     'D_x': D_x, \
                     'D_G_z': D_G_z1, \
                     # 'D_G_z2': D_G_z2,\
-                    'acc_real': acc_real,\
-                    'acc_fake': acc_fake,\
+                    'acc_real': acc_real, \
+                    'acc_fake': acc_fake, \
                     'logit_dist': f_x - f_G_z1, \
                     'penalty_real': opt.lanbda * (gp_real).data[0], \
                     'penalty_fake': opt.lanbda * (gp_fake).data[0], \
