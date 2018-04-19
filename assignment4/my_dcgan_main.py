@@ -23,7 +23,7 @@ from torch.autograd import grad
 from models import _netG, _netD, _netG_upsample
 from utils import make_interpolation_noise
 
-from inception_score import inception_score
+from inception_score import inception_score, mode_score
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', default='celebA',
@@ -288,7 +288,7 @@ for epoch in range(opt.niter):
             for tag, val in info.items():
                 writer.add_scalar(tag, val, global_step=step)
 
-        if i % 500 == 0:
+        if i % 100 == 0:
             plot_images('real_samples', real_cpu, step)
             fake = netG(fixed_noise)
             plot_images('fake_samples', fake.data, step)
@@ -311,10 +311,13 @@ for epoch in range(opt.niter):
             # for name, param in netG.named_parameters():
             #     writer.add_histogram(name, param.clone().cpu().data.numpy(), step)
 
-        if step % 1000 == 0:
+        if step % 100 == 0:
             incep_score, _ = inception_score(fake.data, resize=True)
+            md_score, _ = mode_score(fake.data, real_cpu, resize=True)
             print(f'Inception: {incep_score}')
+            print(f'Mode score: {md_score}')
             writer.add_scalar('inception_score', incep_score, global_step=step)
+            writer.add_scalar('mode_score', md_score, global_step=step)
 
     # do checkpointing
     if epoch % 5 == 0:
