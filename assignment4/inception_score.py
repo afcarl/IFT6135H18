@@ -140,7 +140,7 @@ def mode_score(imgs, real_imgs, cuda=True, batch_size=32, resize=False, splits=1
             scores.append(entropy(pyx, py))
         split_scores.append(np.exp(np.mean(scores) - entropy(py, py_star)))
 
-    return np.mean(split_scores), np.std(split_scores), preds
+    return np.mean(split_scores), np.std(split_scores)
 
 if __name__ == '__main__':
     class IgnoreLabelDataset(torch.utils.data.Dataset):
