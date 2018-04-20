@@ -1,6 +1,5 @@
 import argparse
 import datetime
-import getpass
 import os
 import random
 
@@ -15,14 +14,14 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.utils.data
-#import torch.nn.utils.clip_grad_norm as clip_gradient
+# import torch.nn.utils.clip_grad_norm as clip_gradient
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
 from torch.autograd import grad
 from models import _netG, _netD, _netG_upsample
-from utils import make_interpolation_noise
+from utils import make_interpolation_noise, make_interpolation_samples
 
 from inception_score import inception_score, mode_score
 
@@ -67,7 +66,7 @@ if torch.cuda.is_available():
     opt.cuda = True
 
 # OUT FOLDER
-opt.outf =  opt.outf
+opt.outf = opt.outf
 now = datetime.datetime.now()
 opt.outf += opt.dataset + '/' + str(now.month) + '_' + str(now.day)
 opt.outf += f'/{now.hour}_{now.minute}_{opt.mode}_{opt.name}'
@@ -121,10 +120,10 @@ def gradient_penaltyD(z, f):
 
 def plot_images(tag, data, step, nrow=8):
     """Save mosaic of images to Tensorboard."""
-    vutils.save_image(data,
-                      opt.outf + '/' + tag + '_step_' + str(step) + '.png',
+    save_file = f'{opt.outf}/{tag}_step={step}.png'
+    vutils.save_image(data, save_file,
                       normalize=True, nrow=nrow)
-    im = plt.imread(opt.outf + '/' + tag + '_step_' + str(step) + '.png')
+    im = plt.imread(save_file)
     writer.add_image(tag, im, step)
 
 
@@ -160,7 +159,7 @@ criterion = nn.BCEWithLogitsLoss()
 if opt.mode == 'lsgan':
     criterion = nn.MSELoss()
 if opt.mode == 'wgan':
-    criterion = lambda out, target: ((1 - 2*target) * out).mean()
+    criterion = lambda out, target: ((1 - 2 * target) * out).mean()
 
 sigmoid = nn.Sigmoid()
 
@@ -241,7 +240,7 @@ for epoch in range(opt.niter):
             errD = errD_real + errD_fake
             optimizerD.step()
 
-            if opt.mode == 'wgan':
+            if opt.mode == 'wgan':  # clip weights
                 for param in netD.parameters():
                     param.data.clamp_(-opt.clip, opt.clip)
 
@@ -283,8 +282,8 @@ for epoch in range(opt.niter):
                      errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
             info = {'disc_cost': errD.data[0], \
                     'gen_cost': errG.data[0], \
-                    'f_x': f_x,\
-                    'f_G_z1': f_G_z1,\
+                    'f_x': f_x, \
+                    'f_G_z1': f_G_z1, \
                     'D_x': D_x, \
                     'D_G_z': D_G_z1, \
                     'acc_real': acc_real, \
@@ -298,24 +297,22 @@ for epoch in range(opt.niter):
             for tag, val in info.items():
                 writer.add_scalar(tag, val, global_step=step)
 
-        if i % 50 == 0:
+        if i % 50 == 0:  # plot samples !
             plot_images('real_samples', real_cpu, step)
             fake = netG(fixed_noise)
             plot_images('fake_samples', fake.data, step)
-            interpolation_noise = Variable(make_interpolation_noise(100, 64)).cuda()
-            fake_interpol = netG(interpolation_noise)
-            plot_images('fake_interpolation_samples', fake_interpol.data, step, nrow=10)
+            interpolation_noise, interpolated_noise = make_interpolation_noise(nz)
+            # interpolation in the latent space
+            interpolation_noise = Variable(interpolation_noise).cuda()
+            fake_interpolation = netG(interpolation_noise)
+            plot_images('fake_interpolation_samples', fake_interpolation.data, step, nrow=10)
+            # interpolation in the sample space
+            interpolated_noise = Variable(interpolated_noise).cuda()
+            fake_interpolated = netG(interpolated_noise)
+            x_interpolation = make_interpolation_samples(fake_interpolated.data)
+            plot_images('fake_x_interpolation', x_interpolation, step, nrow=10)
 
-            # vutils.save_image(real_cpu,
-            #         '%s/real_samples.png' % opt.outf,
-            #         normalize=True)
-            # vutils.save_image(fake.data,
-            #         '%s/fake_samples_step_%03d.png' % (opt.outf, step),
-            #         normalize=True)
-            #
-            # im = plt.imread('%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch))
-            # writer.add_image('samples', im, step)
-            #
+            ## Save parameters histogram
             # for name, param in netD.named_parameters():
             #     writer.add_histogram(name, param.clone().cpu().data.numpy(), step)
             # for name, param in netG.named_parameters():
