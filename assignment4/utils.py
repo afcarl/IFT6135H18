@@ -3,12 +3,27 @@ import torch.nn.parallel
 import torch.utils.data
 
 
-def make_interpolation_noise(nz, batch_size, linear=True):
-    num_interpol = 10
-    z1 = torch.randn(8, nz)
-    z2 = torch.randn(8, nz)
-    noise = torch.zeros(8, num_interpol, nz)
-    for i in range(num_interpol):
-        p = (i + 1) / num_interpol
-        noise[:, i] = p * z1 + (1 - p) * z2
-    return noise.view(-1, nz, 1, 1)
+def make_interpolation_noise(nz, num_interpolation=10, num_interpolated=8):
+    z = torch.randn(2 * num_interpolated, nz)
+    noise = torch.zeros(num_interpolated,
+                        num_interpolation, nz)
+    for i in range(num_interpolation):
+        p = i / (num_interpolation - 1)
+        noise[:, i] = p * z[:num_interpolated] \
+                      + (1 - p) * z[num_interpolated:]
+    return noise.view(-1, nz, 1, 1), z.view(-1, nz, 1, 1)
+
+
+def make_interpolation_samples(samples, num_interpolation=10):
+    """Return images interpolated in the x space.
+
+    samples should be a tensor of size (2*nb_interpolated)x3x64x64.
+    """
+    num_interpolated = int(samples.size(0) / 2)
+    interpolation = torch.zeros(samples.size(0) // 2,
+                                num_interpolation, 3, 64, 64)
+    for i in range(num_interpolation):
+        p = i / (num_interpolation - 1)
+        interpolation[:, i] = p * samples[:num_interpolated] \
+                              + (1 - p) * samples[num_interpolated:]
+    return interpolation.view(-1, 3, 64, 64)
