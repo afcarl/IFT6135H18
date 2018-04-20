@@ -288,7 +288,7 @@ for epoch in range(opt.niter):
             for tag, val in info.items():
                 writer.add_scalar(tag, val, global_step=step)
 
-        if i % 100 == 0:
+        if i % 500 == 0:
             plot_images('real_samples', real_cpu, step)
             fake = netG(fixed_noise)
             plot_images('fake_samples', fake.data, step)
@@ -311,7 +311,7 @@ for epoch in range(opt.niter):
             # for name, param in netG.named_parameters():
             #     writer.add_histogram(name, param.clone().cpu().data.numpy(), step)
 
-        if step % 100 == 0:
+        if step % 1000 == 0:
             incep_score, _ = inception_score(fake.data, resize=True)
             md_score, _ = mode_score(fake.data, real_cpu, resize=True)
             print(f'Inception: {incep_score}')
