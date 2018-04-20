@@ -243,7 +243,7 @@ for epoch in range(opt.niter):
 
             if opt.mode == 'wgan':
                 for param in netD.parameters():
-                    param.grad.data.clamp_(-opt.clip, opt.clip)
+                    param.data.clamp_(-opt.clip, opt.clip)
 
         for k in range(opt.gen_iter):
             ############################
@@ -283,12 +283,10 @@ for epoch in range(opt.niter):
                      errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
             info = {'disc_cost': errD.data[0], \
                     'gen_cost': errG.data[0], \
-                    # 'f_x': f_x,\
-                    # 'f_G_z1': f_G_z1,\
-                    # 'f_G_z2': f_G_z2,\
+                    'f_x': f_x,\
+                    'f_G_z1': f_G_z1,\
                     'D_x': D_x, \
                     'D_G_z': D_G_z1, \
-                    # 'D_G_z2': D_G_z2,\
                     'acc_real': acc_real, \
                     'acc_fake': acc_fake, \
                     'logit_dist': f_x - f_G_z1, \
@@ -323,7 +321,7 @@ for epoch in range(opt.niter):
             # for name, param in netG.named_parameters():
             #     writer.add_histogram(name, param.clone().cpu().data.numpy(), step)
 
-        if step % 50 == 0:
+        if step % 500 == 0:
             incep_score, _ = inception_score(fake.data, resize=True)
             md_score, _ = mode_score(fake.data, real_cpu, resize=True)
             print(f'Inception: {incep_score}')
