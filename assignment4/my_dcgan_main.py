@@ -15,6 +15,7 @@ import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.utils.data
+#import torch.nn.utils.clip_grad_norm as clip_gradient
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
@@ -46,7 +47,7 @@ parser.add_argument('--outf', default='gan/logs/dcgan/',
                     help='folder to output images and model checkpoints')
 parser.add_argument('--manualSeed', type=int, help='manual seed')
 parser.add_argument('--mode', type=str, default='nsgan', metavar='N',
-                    help='type of gan', choices=['mmgan', 'nsgan', 'lsgan'])
+                    help='type of gan', choices=['mmgan', 'nsgan', 'lsgan', 'wgan'])
 parser.add_argument('--upsample', type=str, default='convtranspose',
                     choices=['convtranspose', 'nearest', 'bilinear'],
                     help='Method used in the generator to upsample images.')
@@ -55,6 +56,7 @@ parser.add_argument('--name', type=str, default='', metavar='N',
 parser.add_argument('--lanbda', type=float, default=.5, help='regularization')
 parser.add_argument('--critic_iter', type=int, default=1, help='number of critic iterations')
 parser.add_argument('--gen_iter', type=int, default=1, help='number of generator iterations')
+parser.add_argument('--clip', type=float, default=.05, help='gradient clipping')
 
 opt = parser.parse_args()
 print(opt)
@@ -65,7 +67,7 @@ if torch.cuda.is_available():
     opt.cuda = True
 
 # OUT FOLDER
-opt.outf = f'/data/milatmp1/{getpass.getuser()}/' + opt.outf
+opt.outf =  opt.outf
 now = datetime.datetime.now()
 opt.outf += opt.dataset + '/' + str(now.month) + '_' + str(now.day)
 opt.outf += f'/{now.hour}_{now.minute}_{opt.mode}_{opt.name}'
@@ -157,6 +159,8 @@ print(netG)
 criterion = nn.BCEWithLogitsLoss()
 if opt.mode == 'lsgan':
     criterion = nn.MSELoss()
+if opt.mode == 'wgan':
+    criterion = lambda out, target: ((1 - 2*target) * out).mean()
 
 sigmoid = nn.Sigmoid()
 
@@ -177,7 +181,8 @@ fake_label = 0
 if opt.cuda:
     netD.cuda()
     netG.cuda()
-    criterion.cuda()
+    if opt.mode != 'wgan':
+        criterion.cuda()
     input, label = input.cuda(), label.cuda()
     noise, fixed_noise = noise.cuda(), fixed_noise.cuda()
 
@@ -236,6 +241,10 @@ for epoch in range(opt.niter):
             errD = errD_real + errD_fake
             optimizerD.step()
 
+            if opt.mode == 'wgan':
+                for param in netD.parameters():
+                    param.data.clamp_(-opt.clip, opt.clip)
+
         for k in range(opt.gen_iter):
             ############################
             # (2) Update G network: maximize log(D(G(z)))
@@ -259,6 +268,9 @@ for epoch in range(opt.niter):
                 # use real labels for generator
                 labelv = Variable(label.fill_(real_label))
                 errG = criterion(output, labelv)
+            elif opt.mode == 'wgan':
+                labelv = Variable(label.fill_(real_label))
+                errG = criterion(output, labelv)
 
             errG.backward()
             f_G_z2 = output.data.mean()
@@ -271,12 +283,10 @@ for epoch in range(opt.niter):
                      errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
             info = {'disc_cost': errD.data[0], \
                     'gen_cost': errG.data[0], \
-                    # 'f_x': f_x,\
-                    # 'f_G_z1': f_G_z1,\
-                    # 'f_G_z2': f_G_z2,\
+                    'f_x': f_x,\
+                    'f_G_z1': f_G_z1,\
                     'D_x': D_x, \
                     'D_G_z': D_G_z1, \
-                    # 'D_G_z2': D_G_z2,\
                     'acc_real': acc_real, \
                     'acc_fake': acc_fake, \
                     'logit_dist': f_x - f_G_z1, \
@@ -288,7 +298,7 @@ for epoch in range(opt.niter):
             for tag, val in info.items():
                 writer.add_scalar(tag, val, global_step=step)
 
-        if i % 500 == 0:
+        if i % 50 == 0:
             plot_images('real_samples', real_cpu, step)
             fake = netG(fixed_noise)
             plot_images('fake_samples', fake.data, step)
@@ -311,7 +321,7 @@ for epoch in range(opt.niter):
             # for name, param in netG.named_parameters():
             #     writer.add_histogram(name, param.clone().cpu().data.numpy(), step)
 
-        if step % 1000 == 0:
+        if step % 500 == 0:
             incep_score, _ = inception_score(fake.data, resize=True)
             md_score, _ = mode_score(fake.data, real_cpu, resize=True)
             print(f'Inception: {incep_score}')
