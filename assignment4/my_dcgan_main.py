@@ -50,7 +50,7 @@ parser.add_argument('--mode', type=str, default='nsgan', metavar='N',
 parser.add_argument('--upsample', type=str, default='convtranspose',
                     choices=['convtranspose', 'nearest', 'bilinear'],
                     help='Method used in the generator to upsample images.')
-parser.add_argument('--name', type=str, default='name', metavar='N',
+parser.add_argument('--name', type=str, default='', metavar='N',
                     help='name of the session')
 parser.add_argument('--lanbda', type=float, default=.5, help='regularization')
 parser.add_argument('--critic_iter', type=int, default=1, help='number of critic iterations')
@@ -68,7 +68,7 @@ if torch.cuda.is_available():
 opt.outf = f'/data/milatmp1/{getpass.getuser()}/' + opt.outf
 now = datetime.datetime.now()
 opt.outf += opt.dataset + '/' + str(now.month) + '_' + str(now.day)
-opt.outf += '/' + str(now.hour) + '_' + str(now.minute) + '_' + opt.mode + '_' + opt.name
+opt.outf += f'/{now.hour}_{now.minute}_{opt.mode}_{opt.name}'
 opt.outf += f'_lambda={opt.lanbda}_citer={opt.critic_iter}_giter={opt.gen_iter}'
 opt.outf += f'_beta1={opt.beta1}_upsample={opt.upsample}'
 
