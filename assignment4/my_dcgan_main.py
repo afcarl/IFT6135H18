@@ -2,6 +2,7 @@ import argparse
 import datetime
 import os
 import random
+import getpass
 
 import matplotlib
 import tensorboardX
@@ -66,7 +67,7 @@ if torch.cuda.is_available():
     opt.cuda = True
 
 # OUT FOLDER
-opt.outf = opt.outf
+opt.outf = f'/data/milatmp1/{getpass.getuser()}/' + opt.outf
 now = datetime.datetime.now()
 opt.outf += opt.dataset + '/' + str(now.month) + '_' + str(now.day)
 opt.outf += f'/{now.hour}_{now.minute}_{opt.mode}_{opt.name}'
