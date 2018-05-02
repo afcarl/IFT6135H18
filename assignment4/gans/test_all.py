@@ -1,6 +1,6 @@
 import torch
 
-from utils import make_interpolation_noise, make_interpolation_samples
+from gans.utils import make_interpolation_noise, make_interpolation_samples
 # Use this module with the pytest command line tool.
 
 def test_make_interpolation_noise():
