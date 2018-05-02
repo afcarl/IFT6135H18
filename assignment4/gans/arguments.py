@@ -46,8 +46,6 @@ def get_arguments():
                         help='number of critic iterations')
     parser.add_argument('--gen_iter', type=int, default=1,
                         help='number of generator iterations')
-    parser.add_argument('--clip', type=float, default=.05,
-                        help='Gradient clipping for wgan discriminator.')
 
     # Checkpoints
     parser.add_argument('--netG', default='', help="path to netG (to continue training)")

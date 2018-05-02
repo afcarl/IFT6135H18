@@ -173,10 +173,6 @@ if __name__ == '__main__':
                 errD = errD_real + errD_fake
                 optimizerD.step()
 
-                if opt.mode == 'wgan':  # clip weights
-                    for param in netD.parameters():
-                        param.data.clamp_(-opt.clip, opt.clip)
-
             for k in range(opt.gen_iter):
                 ############################
                 # (2) Update G network: maximize log(D(G(z)))
