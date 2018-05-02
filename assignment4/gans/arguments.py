@@ -35,17 +35,20 @@ def get_arguments():
 
     # GAN architecture
     parser.add_argument('--mode', type=str, default='nsgan', metavar='N',
-                        help='Type of GAN: minimax, non-saturating, least-square, wasserstein.',
+                        help='Type of GAN: minimax, non-saturating, least-square, Wasserstein.',
                         choices=['mmgan', 'nsgan', 'lsgan', 'wgan'])
     parser.add_argument('--upsample', type=str, default='convtranspose',
                         choices=['convtranspose', 'nearest', 'bilinear'],
                         help='Method used in the generator to up-sample images.')
-    parser.add_argument('--lanbda', type=float, default=.5,
-                        help='Regularization factor for the gradient penalty.')
     parser.add_argument('--critic_iter', type=int, default=1,
                         help='number of critic iterations')
     parser.add_argument('--gen_iter', type=int, default=1,
                         help='number of generator iterations')
+    parser.add_argument('--lanbda', type=float, default=.5,
+                        help='Regularization factor for the gradient penalty.')
+    parser.add_argument('--penalty', type=str, default='both',
+                        choices=['real', 'fake', 'both', 'uniform'],
+                        help='Distribution on which to apply gradient penalty.')
 
     # Checkpoints
     parser.add_argument('--netG', default='', help="path to netG (to continue training)")
@@ -78,12 +81,16 @@ def get_arguments():
         torch.cuda.manual_seed_all(opt.seed)
 
     # OUT FOLDER
-    opt.outf = f'/data/milatmp1/{getpass.getuser()}/' + opt.outf
+    root_path = f'/data/milatmp1/{getpass.getuser()}'
     now = datetime.datetime.now()
-    opt.outf += opt.dataset + '/' + str(now.month) + '_' + str(now.day)
-    opt.outf += f'/{now.hour}_{now.minute}_{opt.mode}_{opt.name}'
-    opt.outf += f'_lambda={opt.lanbda}_citer={opt.critic_iter}_giter={opt.gen_iter}'
-    opt.outf += f'_beta1={opt.beta1}_upsample={opt.upsample}_seed={opt.seed}'
+    strpenalty = '0' if opt.lanbda == 0 else f'{opt.lanbda}{opt.penalty}'
+    folder_path = (
+        f'{opt.dataset}/{now.month}_{now.day}'
+        f'/{now.hour}_{now.minute}_{opt.mode}_{opt.name}'
+        f'_gp={strpenalty}_citer={opt.critic_iter}_giter={opt.gen_iter}'
+        f'_beta1={opt.beta1}_upsample={opt.upsample}_seed={opt.seed}'
+    )
+    opt.outf = os.path.join(root_path, opt.outf, folder_path)
 
     print('Outfile: ', opt.outf)
     os.makedirs(opt.outf)
