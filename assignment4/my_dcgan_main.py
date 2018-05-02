@@ -1,10 +1,8 @@
-import imageio
 import tensorboardX
 import torch
 import torch.nn as nn
 import torchvision.datasets as vdset
 import torchvision.transforms as vtransforms
-import torchvision.utils as vutils
 from torch.autograd import Variable
 
 import gans
@@ -50,17 +48,8 @@ if __name__ == '__main__':
         return gp
 
 
-    def plot_images(tag, data, step, nrow=8):
-        """Save mosaic of images to Tensorboard."""
-        save_file = f'{opt.outf}/{tag}_step={step}.png'
-        vutils.save_image(data, save_file,
-                          normalize=True, nrow=nrow)
-        im = imageio.imread(save_file)
-        writer.add_image(tag, im, step)
-
-
-    # custom weights initialization called on netG and netD
     def weights_init(m):
+        """Custom weights initialization."""
         classname = m.__class__.__name__
         if classname.find('Conv') != -1:
             m.weight.data.normal_(0.0, 0.02)
@@ -223,20 +212,29 @@ if __name__ == '__main__':
                     writer.add_scalar(tag, val, global_step=step)
 
             if i % 50 == 0:  # plot samples !
-                plot_images('real_samples', real_cpu, step)
+                gans.utils.plot_images(
+                    opt.outf, writer, 'real_samples', real_cpu, step)
                 fake = netG(fixed_noise)
-                plot_images('fake_samples', fake.data, step)
+                gans.utils.plot_images(
+                    opt.outf, writer, 'fake_samples', fake.data, step)
                 interpolation_noise, interpolated_noise = gans.utils.make_interpolation_noise(
                     opt.nz)
+
                 # interpolation in the latent space
                 interpolation_noise = Variable(interpolation_noise).cuda()
                 fake_interpolation = netG(interpolation_noise)
-                plot_images('fake_interpolation_samples', fake_interpolation.data, step, nrow=10)
+                gans.utils.plot_images(
+                    opt.outf, writer, 'fake_interpolation_samples',
+                    fake_interpolation.data, step, nrow=10)
+
                 # interpolation in the sample space
                 interpolated_noise = Variable(interpolated_noise).cuda()
                 fake_interpolated = netG(interpolated_noise)
-                x_interpolation = gans.utils.make_interpolation_samples(fake_interpolated.data)
-                plot_images('fake_x_interpolation', x_interpolation, step, nrow=10)
+                x_interpolation = gans.utils.make_interpolation_samples(
+                    fake_interpolated.data)
+                gans.utils.plot_images(
+                    opt.outf, writer, 'fake_x_interpolation',
+                    x_interpolation, step, nrow=10)
 
                 ## Save parameters histogram
                 # for name, param in netD.named_parameters():
