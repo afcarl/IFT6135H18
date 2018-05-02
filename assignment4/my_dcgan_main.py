@@ -76,10 +76,7 @@ if __name__=='__main__':
 
 
     # INITIALIZE MODELS
-    if opt.upsample == 'convtranspose':
-        netG = _netG(opt)
-    else:
-        netG = _netG_upsample(opt)
+    netG = _netG(opt)
     netD = _netD(opt)
     netD.apply(weights_init)
     netG.apply(weights_init)
