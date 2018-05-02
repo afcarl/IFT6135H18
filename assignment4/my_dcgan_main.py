@@ -15,7 +15,7 @@ import torchvision.utils as vutils
 from torch.autograd import Variable
 from torch.autograd import grad
 
-from gans.models import _netG, _netD, _netG_upsample
+from gans.models import GeneratorNet, DiscriminatorNet
 from gans.utils import make_interpolation_noise, make_interpolation_samples
 from gans.arguments import get_arguments
 
@@ -76,8 +76,8 @@ if __name__=='__main__':
 
 
     # INITIALIZE MODELS
-    netG = _netG(opt)
-    netD = _netD(opt)
+    netG = GeneratorNet(opt)
+    netD = DiscriminatorNet(opt)
     netD.apply(weights_init)
     netG.apply(weights_init)
 

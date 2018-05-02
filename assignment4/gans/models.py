@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 
 
-class _netG(nn.Module):
+class GeneratorNet(nn.Module):
     """Generator network with square layers of  size [1, 4, 8, 16, 32]"""
 
     def __init__(self, opt):
-        super(_netG, self).__init__()
+        super(GeneratorNet, self).__init__()
         self.ngpu = opt.ngpu
 
         if opt.upsample == 'convtranspose':
@@ -70,9 +70,9 @@ class _netG(nn.Module):
         return output
 
 
-class _netD(nn.Module):
+class DiscriminatorNet(nn.Module):
     def __init__(self, opt):
-        super(_netD, self).__init__()
+        super(DiscriminatorNet, self).__init__()
         self.ngpu = opt.ngpu
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
