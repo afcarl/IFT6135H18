@@ -46,20 +46,12 @@ if __name__=='__main__':
     )
     print('Dataloader done')
 
-    # HYPER PARAMETERS
-    ngpu = int(opt.ngpu)
-    nz = int(opt.nz)
-    ngf = int(opt.ngf)
-    ndf = int(opt.ndf)
-    nc = 3
-
-
     def gradient_penaltyD(z, f):
         # gradient penalty
         z = Variable(z, requires_grad=True)
         o = f(z)
         g = grad(o, z, grad_outputs=torch.ones(o.size()).cuda(), create_graph=True, retain_graph=True,
-                 only_inputs=True)[0]  # .view(z.size(0), -1)
+                 only_inputs=True)[0]
         gp = ((g.view(z.size(0), -1).norm(p=2, dim=1)) ** 2).mean()
         return gp
 
@@ -85,10 +77,10 @@ if __name__=='__main__':
 
     # INITIALIZE MODELS
     if opt.upsample == 'convtranspose':
-        netG = _netG(ngpu)
+        netG = _netG(opt)
     else:
-        netG = _netG_upsample(ngpu, opt.upsample)
-    netD = _netD(ngpu)
+        netG = _netG_upsample(opt)
+    netD = _netD(opt)
     netD.apply(weights_init)
     netG.apply(weights_init)
 
@@ -113,10 +105,10 @@ if __name__=='__main__':
     input = torch.FloatTensor(opt.batchSize, 3, opt.imageSize, opt.imageSize)
 
     # input noise for the generator
-    noise = torch.FloatTensor(opt.batchSize, nz, 1, 1)
+    noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1)
 
     # input noise to plot samples
-    fixed_noise = torch.FloatTensor(opt.batchSize, nz, 1, 1).normal_(0, 1)
+    fixed_noise = torch.FloatTensor(opt.batchSize,opt.nz, 1, 1).normal_(0, 1)
 
     # labels
     label = torch.FloatTensor(opt.batchSize)
@@ -168,7 +160,7 @@ if __name__=='__main__':
                 D_x = sigmoid(output).data.mean()
 
                 # train with fake
-                noise.resize_(batch_size, nz, 1, 1).normal_(0, 1)
+                noise.resize_(batch_size, opt.nz, 1, 1).normal_(0, 1)
                 noisev = Variable(noise)
                 labelv = Variable(label.fill_(fake_label))
 
@@ -195,7 +187,7 @@ if __name__=='__main__':
                 # (2) Update G network: maximize log(D(G(z)))
                 ###########################
                 if k > 0:
-                    noise.resize_(batch_size, nz, 1, 1).normal_(0, 1)
+                    noise.resize_(batch_size, opt.nz, 1, 1).normal_(0, 1)
                     noisev = Variable(noise)
                     fake = netG(noisev)
 
@@ -247,7 +239,7 @@ if __name__=='__main__':
                 plot_images('real_samples', real_cpu, step)
                 fake = netG(fixed_noise)
                 plot_images('fake_samples', fake.data, step)
-                interpolation_noise, interpolated_noise = make_interpolation_noise(nz)
+                interpolation_noise, interpolated_noise = make_interpolation_noise(opt.nz)
                 # interpolation in the latent space
                 interpolation_noise = Variable(interpolation_noise).cuda()
                 fake_interpolation = netG(interpolation_noise)

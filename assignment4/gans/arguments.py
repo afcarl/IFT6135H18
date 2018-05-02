@@ -60,6 +60,9 @@ def get_arguments():
     opt = parser.parse_args()
     print(opt)
 
+    # Number of input channels (RGB)
+    opt.nc = 3
+
     # CUDA
     torch.backends.cudnn.benchmark = True
     opt.cuda = torch.cuda.is_available()
