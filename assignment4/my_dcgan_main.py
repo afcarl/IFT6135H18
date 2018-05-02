@@ -1,57 +1,55 @@
 import matplotlib
-import tensorboardX
 
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+from matplotlib.pyplot import imread
+
 import torch
 import torch.nn as nn
-import torch.nn.parallel
-import torch.optim as optim
-import torch.utils.data
-# import torch.nn.utils.clip_grad_norm as clip_gradient
-import torchvision.datasets as dset
-import torchvision.transforms as transforms
+import torchvision.datasets as vdset
+import torchvision.transforms as vtransforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
-from torch.autograd import grad
+import tensorboardX
 
-from gans.models import GeneratorNet, DiscriminatorNet
-from gans.utils import make_interpolation_noise, make_interpolation_samples
-from gans.arguments import get_arguments
+import gans
 
-from gans.inception_score import inception_score, mode_score
-
-
-if __name__=='__main__':
-    opt = get_arguments()
+if __name__ == '__main__':
+    opt = gans.arguments.get_arguments()
 
     writer = tensorboardX.SummaryWriter(opt.outf)
 
     # DATA
     print(f'Loading dataset {opt.dataset} at {opt.dataroot}')
     # folder dataset
-    dataset = dset.ImageFolder(root=opt.dataroot,
-                               transform=transforms.Compose([
-                                   transforms.Resize(opt.imageSize),
-                                   transforms.CenterCrop(opt.imageSize),
-                                   transforms.ToTensor(),
-                                   transforms.Normalize(
-                                       (0.5, 0.5, 0.5),
-                                       (0.5, 0.5, 0.5)
-                                   ),
-                               ]))
+    dataset = vdset.ImageFolder(
+        root=opt.dataroot,
+        transform=vtransforms.Compose([
+            vtransforms.Resize(opt.imageSize),
+            vtransforms.CenterCrop(opt.imageSize),
+            vtransforms.ToTensor(),
+            vtransforms.Normalize(
+                (0.5, 0.5, 0.5),
+                (0.5, 0.5, 0.5)
+            ),
+        ]))
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=opt.batchSize,
         shuffle=True, num_workers=int(opt.workers)
     )
     print('Dataloader done')
 
+
     def gradient_penaltyD(z, f):
         # gradient penalty
         z = Variable(z, requires_grad=True)
         o = f(z)
-        g = grad(o, z, grad_outputs=torch.ones(o.size()).cuda(), create_graph=True, retain_graph=True,
-                 only_inputs=True)[0]
+        g = torch.autograd.grad(
+            o, z,
+            grad_outputs=torch.ones(o.size()).cuda(),
+            create_graph=True,
+            retain_graph=True,
+            only_inputs=True
+        )[0]
         gp = ((g.view(z.size(0), -1).norm(p=2, dim=1)) ** 2).mean()
         return gp
 
@@ -61,7 +59,7 @@ if __name__=='__main__':
         save_file = f'{opt.outf}/{tag}_step={step}.png'
         vutils.save_image(data, save_file,
                           normalize=True, nrow=nrow)
-        im = plt.imread(save_file)
+        im = imread(save_file)
         writer.add_image(tag, im, step)
 
 
@@ -76,8 +74,8 @@ if __name__=='__main__':
 
 
     # INITIALIZE MODELS
-    netG = GeneratorNet(opt)
-    netD = DiscriminatorNet(opt)
+    netG = gans.models.GeneratorNet(opt)
+    netD = gans.models.DiscriminatorNet(opt)
     netD.apply(weights_init)
     netG.apply(weights_init)
 
@@ -105,7 +103,7 @@ if __name__=='__main__':
     noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1)
 
     # input noise to plot samples
-    fixed_noise = torch.FloatTensor(opt.batchSize,opt.nz, 1, 1).normal_(0, 1)
+    fixed_noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1).normal_(0, 1)
 
     # labels
     label = torch.FloatTensor(opt.batchSize)
@@ -123,8 +121,8 @@ if __name__=='__main__':
     fixed_noise = Variable(fixed_noise)
 
     # setup optimizer
-    optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-    optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+    optimizerD = torch.optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+    optimizerG = torch.optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
     step = 0
     for epoch in range(opt.niter):
@@ -236,7 +234,8 @@ if __name__=='__main__':
                 plot_images('real_samples', real_cpu, step)
                 fake = netG(fixed_noise)
                 plot_images('fake_samples', fake.data, step)
-                interpolation_noise, interpolated_noise = make_interpolation_noise(opt.nz)
+                interpolation_noise, interpolated_noise = gans.utils.make_interpolation_noise(
+                    opt.nz)
                 # interpolation in the latent space
                 interpolation_noise = Variable(interpolation_noise).cuda()
                 fake_interpolation = netG(interpolation_noise)
@@ -244,7 +243,7 @@ if __name__=='__main__':
                 # interpolation in the sample space
                 interpolated_noise = Variable(interpolated_noise).cuda()
                 fake_interpolated = netG(interpolated_noise)
-                x_interpolation = make_interpolation_samples(fake_interpolated.data)
+                x_interpolation = gans.utils.make_interpolation_samples(fake_interpolated.data)
                 plot_images('fake_x_interpolation', x_interpolation, step, nrow=10)
 
                 ## Save parameters histogram
@@ -254,8 +253,8 @@ if __name__=='__main__':
                 #     writer.add_histogram(name, param.clone().cpu().data.numpy(), step)
 
             if step % 500 == 0:
-                incep_score, _ = inception_score(fake.data, resize=True)
-                md_score, _ = mode_score(fake.data, real_cpu, resize=True)
+                incep_score, _ = gans.scores.inception_score(fake.data, resize=True)
+                md_score, _ = gans.scores.mode_score(fake.data, real_cpu, resize=True)
                 print(f'Inception: {incep_score}')
                 print(f'Mode score: {md_score}')
                 writer.add_scalar('inception_score', incep_score, global_step=step)
