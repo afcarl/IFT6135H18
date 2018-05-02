@@ -100,28 +100,25 @@ class DiscriminatorNet(nn.Module):
 
         self.apply(weights_init)
 
-    def forward(self, input):
-        if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
-            output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
+    def forward(self, inp):
+        if isinstance(inp.data, torch.cuda.FloatTensor) and self.ngpu > 1:
+            output = nn.parallel.data_parallel(self.main, inp, range(self.ngpu))
         else:
-            output = self.main(input)
+            output = self.main(inp)
 
         return output.view(-1, 1).squeeze(1)
 
-
-def gradient_penaltyD(z, f):
-    # gradient penalty
-    z = Variable(z, requires_grad=True)
-    o = f(z)
-    g = torch.autograd.grad(
-        o, z,
-        grad_outputs=torch.ones(o.size()).cuda(),
-        create_graph=True,
-        retain_graph=True,
-        only_inputs=True
-    )[0]
-    gp = ((g.view(z.size(0), -1).norm(p=2, dim=1)) ** 2).mean()
-    return gp
+    def gradient_penalty(self, inp):
+        inp = Variable(inp, requires_grad=True)
+        o = self.forward(inp)
+        g = torch.autograd.grad(
+            o, inp,
+            grad_outputs=torch.ones_like(o),
+            create_graph=True,
+            only_inputs=True  # don't accumulate other gradients in .grad
+        )[0]
+        gp = ((g.view(inp.size(0), -1).norm(p=2, dim=1)) ** 2).mean()
+        return gp
 
 
 def weights_init(m):

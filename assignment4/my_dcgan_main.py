@@ -105,7 +105,7 @@ if __name__ == '__main__':
                 errD_real = criterion(output, labelv)
                 acc_real = sigmoid(output).data.round().mean()
 
-                gp_real = models.gradient_penaltyD(inputv.data, netD)
+                gp_real = netD.gradient_penalty(inputv.data)
                 (opt.lanbda * gp_real).backward()
 
                 errD_real.backward()
@@ -121,7 +121,7 @@ if __name__ == '__main__':
                 output = netD(fake.detach()).squeeze()
                 errD_fake = criterion(output, labelv)
 
-                gp_fake = models.gradient_penaltyD(fake.data, netD)
+                gp_fake = netD.gradient_penalty(fake.data)
                 (opt.lanbda * gp_fake).backward()
 
                 errD_fake.backward()
