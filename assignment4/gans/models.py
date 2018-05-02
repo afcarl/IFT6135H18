@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
 
 
 class GeneratorNet(nn.Module):
@@ -62,6 +63,8 @@ class GeneratorNet(nn.Module):
                 # state size. (nc) x 64 x 64
             )
 
+        self.apply(weights_init)
+
     def forward(self, input):
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
             output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
@@ -95,6 +98,8 @@ class DiscriminatorNet(nn.Module):
             # nn.Sigmoid()
         )
 
+        self.apply(weights_init)
+
     def forward(self, input):
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
             output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
@@ -102,3 +107,28 @@ class DiscriminatorNet(nn.Module):
             output = self.main(input)
 
         return output.view(-1, 1).squeeze(1)
+
+
+def gradient_penaltyD(z, f):
+    # gradient penalty
+    z = Variable(z, requires_grad=True)
+    o = f(z)
+    g = torch.autograd.grad(
+        o, z,
+        grad_outputs=torch.ones(o.size()).cuda(),
+        create_graph=True,
+        retain_graph=True,
+        only_inputs=True
+    )[0]
+    gp = ((g.view(z.size(0), -1).norm(p=2, dim=1)) ** 2).mean()
+    return gp
+
+
+def weights_init(m):
+    """Custom weights initialization."""
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        m.weight.data.normal_(0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.fill_(0)

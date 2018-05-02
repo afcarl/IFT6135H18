@@ -5,10 +5,11 @@ import torchvision.datasets as vdset
 import torchvision.transforms as vtransforms
 from torch.autograd import Variable
 
-import gans
+from gans import arguments, models, scores, utils
 
 if __name__ == '__main__':
-    opt = gans.arguments.get_arguments()
+
+    opt = arguments.get_arguments()
 
     writer = tensorboardX.SummaryWriter(opt.outf)
 
@@ -32,37 +33,9 @@ if __name__ == '__main__':
     )
     print('Dataloader done')
 
-
-    def gradient_penaltyD(z, f):
-        # gradient penalty
-        z = Variable(z, requires_grad=True)
-        o = f(z)
-        g = torch.autograd.grad(
-            o, z,
-            grad_outputs=torch.ones(o.size()).cuda(),
-            create_graph=True,
-            retain_graph=True,
-            only_inputs=True
-        )[0]
-        gp = ((g.view(z.size(0), -1).norm(p=2, dim=1)) ** 2).mean()
-        return gp
-
-
-    def weights_init(m):
-        """Custom weights initialization."""
-        classname = m.__class__.__name__
-        if classname.find('Conv') != -1:
-            m.weight.data.normal_(0.0, 0.02)
-        elif classname.find('BatchNorm') != -1:
-            m.weight.data.normal_(1.0, 0.02)
-            m.bias.data.fill_(0)
-
-
     # INITIALIZE MODELS
-    netG = gans.models.GeneratorNet(opt)
-    netD = gans.models.DiscriminatorNet(opt)
-    netD.apply(weights_init)
-    netG.apply(weights_init)
+    netG = models.GeneratorNet(opt)
+    netD = models.DiscriminatorNet(opt)
 
     # Reload past models for a warm start
     if opt.netD != '':
@@ -132,7 +105,7 @@ if __name__ == '__main__':
                 errD_real = criterion(output, labelv)
                 acc_real = sigmoid(output).data.round().mean()
 
-                gp_real = gradient_penaltyD(inputv.data, netD)
+                gp_real = models.gradient_penaltyD(inputv.data, netD)
                 (opt.lanbda * gp_real).backward()
 
                 errD_real.backward()
@@ -148,7 +121,7 @@ if __name__ == '__main__':
                 output = netD(fake.detach()).squeeze()
                 errD_fake = criterion(output, labelv)
 
-                gp_fake = gradient_penaltyD(fake.data, netD)
+                gp_fake = models.gradient_penaltyD(fake.data, netD)
                 (opt.lanbda * gp_fake).backward()
 
                 errD_fake.backward()
@@ -212,27 +185,27 @@ if __name__ == '__main__':
                     writer.add_scalar(tag, val, global_step=step)
 
             if i % 50 == 0:  # plot samples !
-                gans.utils.plot_images(
+                utils.plot_images(
                     opt.outf, writer, 'real_samples', real_cpu, step)
                 fake = netG(fixed_noise)
-                gans.utils.plot_images(
+                utils.plot_images(
                     opt.outf, writer, 'fake_samples', fake.data, step)
-                interpolation_noise, interpolated_noise = gans.utils.make_interpolation_noise(
-                    opt.nz)
+                interpolation_noise, interpolated_noise = \
+                    utils.make_interpolation_noise(opt.nz)
 
                 # interpolation in the latent space
                 interpolation_noise = Variable(interpolation_noise).cuda()
                 fake_interpolation = netG(interpolation_noise)
-                gans.utils.plot_images(
+                utils.plot_images(
                     opt.outf, writer, 'fake_interpolation_samples',
                     fake_interpolation.data, step, nrow=10)
 
                 # interpolation in the sample space
                 interpolated_noise = Variable(interpolated_noise).cuda()
                 fake_interpolated = netG(interpolated_noise)
-                x_interpolation = gans.utils.make_interpolation_samples(
-                    fake_interpolated.data)
-                gans.utils.plot_images(
+                x_interpolation = \
+                    utils.make_interpolation_samples(fake_interpolated.data)
+                utils.plot_images(
                     opt.outf, writer, 'fake_x_interpolation',
                     x_interpolation, step, nrow=10)
 
@@ -243,8 +216,8 @@ if __name__ == '__main__':
                 #     writer.add_histogram(name, param.clone().cpu().data.numpy(), step)
 
             if step % 500 == 0:
-                incep_score, _ = gans.scores.inception_score(fake.data, resize=True)
-                md_score, _ = gans.scores.mode_score(fake.data, real_cpu, resize=True)
+                incep_score, _ = scores.inception_score(fake.data, resize=True)
+                md_score, _ = scores.mode_score(fake.data, real_cpu, resize=True)
                 print(f'Inception: {incep_score}')
                 print(f'Mode score: {md_score}')
                 writer.add_scalar('inception_score', incep_score, global_step=step)
