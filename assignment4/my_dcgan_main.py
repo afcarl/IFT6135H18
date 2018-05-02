@@ -1,15 +1,11 @@
-import matplotlib
-
-matplotlib.use('Agg')
-from matplotlib.pyplot import imread
-
+import imageio
+import tensorboardX
 import torch
 import torch.nn as nn
 import torchvision.datasets as vdset
 import torchvision.transforms as vtransforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
-import tensorboardX
 
 import gans
 
@@ -59,7 +55,7 @@ if __name__ == '__main__':
         save_file = f'{opt.outf}/{tag}_step={step}.png'
         vutils.save_image(data, save_file,
                           normalize=True, nrow=nrow)
-        im = imread(save_file)
+        im = imageio.imread(save_file)
         writer.add_image(tag, im, step)
 
 
