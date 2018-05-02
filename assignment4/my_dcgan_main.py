@@ -1,9 +1,3 @@
-import argparse
-import datetime
-import os
-import random
-import getpass
-
 import matplotlib
 import tensorboardX
 
@@ -12,7 +6,6 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.nn.parallel
-import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import torch.utils.data
 # import torch.nn.utils.clip_grad_norm as clip_gradient
@@ -23,69 +16,13 @@ from torch.autograd import Variable
 from torch.autograd import grad
 from models import _netG, _netD, _netG_upsample
 from utils import make_interpolation_noise, make_interpolation_samples
+from arguments import get_arguments
 
 from inception_score import inception_score, mode_score
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', default='celebA',
-                    help='cifar10 | lsun | imagenet | folder | lfw | fake')
-parser.add_argument('--dataroot', default='/data/lisa/data/celeba', help='path to dataset')
-parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
-parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
-parser.add_argument('--imageSize', type=int, default=64,
-                    help='the height / width of the input image to network')
-parser.add_argument('--nz', type=int, default=100, help='size of the latent z vector')
-parser.add_argument('--ngf', type=int, default=64)
-parser.add_argument('--ndf', type=int, default=64)
-parser.add_argument('--niter', type=int, default=150, help='number of epochs to train for')
-parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
-parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
-parser.add_argument('--ngpu', type=int, default=1, help='number of GPUs to use')
-parser.add_argument('--netG', default='', help="path to netG (to continue training)")
-parser.add_argument('--netD', default='', help="path to netD (to continue training)")
-parser.add_argument('--outf', default='gan/logs/dcgan/',
-                    help='folder to output images and model checkpoints')
-parser.add_argument('--manualSeed', type=int, help='manual seed')
-parser.add_argument('--mode', type=str, default='nsgan', metavar='N',
-                    help='type of gan', choices=['mmgan', 'nsgan', 'lsgan', 'wgan'])
-parser.add_argument('--upsample', type=str, default='convtranspose',
-                    choices=['convtranspose', 'nearest', 'bilinear'],
-                    help='Method used in the generator to upsample images.')
-parser.add_argument('--name', type=str, default='', metavar='N',
-                    help='name of the session')
-parser.add_argument('--lanbda', type=float, default=.5, help='regularization')
-parser.add_argument('--critic_iter', type=int, default=1, help='number of critic iterations')
-parser.add_argument('--gen_iter', type=int, default=1, help='number of generator iterations')
-parser.add_argument('--clip', type=float, default=.05, help='gradient clipping')
+opt = get_arguments()
 
-opt = parser.parse_args()
-print(opt)
-
-# CUDA
-cudnn.benchmark = True
-if torch.cuda.is_available():
-    opt.cuda = True
-
-# OUT FOLDER
-opt.outf = f'/data/milatmp1/{getpass.getuser()}/' + opt.outf
-now = datetime.datetime.now()
-opt.outf += opt.dataset + '/' + str(now.month) + '_' + str(now.day)
-opt.outf += f'/{now.hour}_{now.minute}_{opt.mode}_{opt.name}'
-opt.outf += f'_lambda={opt.lanbda}_citer={opt.critic_iter}_giter={opt.gen_iter}'
-opt.outf += f'_beta1={opt.beta1}_upsample={opt.upsample}'
-
-print('Outfile: ', opt.outf)
-os.makedirs(opt.outf)
 writer = tensorboardX.SummaryWriter(opt.outf)
-
-# SEED
-if opt.manualSeed is None:
-    opt.manualSeed = random.randint(1, 10000)
-print("Random Seed: ", opt.manualSeed)
-random.seed(opt.manualSeed)
-torch.manual_seed(opt.manualSeed)
-if opt.cuda:
-    torch.cuda.manual_seed_all(opt.manualSeed)
 
 # DATA
 print(f'Loading dataset {opt.dataset} at {opt.dataroot}')
@@ -95,10 +32,15 @@ dataset = dset.ImageFolder(root=opt.dataroot,
                                transforms.Resize(opt.imageSize),
                                transforms.CenterCrop(opt.imageSize),
                                transforms.ToTensor(),
-                               transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                               transforms.Normalize(
+                                   (0.5, 0.5, 0.5),
+                                   (0.5, 0.5, 0.5)
+                               ),
                            ]))
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
-                                         shuffle=True, num_workers=int(opt.workers))
+dataloader = torch.utils.data.DataLoader(
+    dataset, batch_size=opt.batchSize,
+    shuffle=True, num_workers=int(opt.workers)
+)
 print('Dataloader done')
 
 # HYPER PARAMETERS
