@@ -50,20 +50,18 @@ if __name__ == '__main__':
     if opt.mode == 'lsgan':
         criterion = nn.MSELoss()
     if opt.mode == 'wgan':
-        criterion = lambda out, target: ((1 - 2 * target) * out).mean()
+        def criterion(out, target):
+            return ((1 - 2 * target) * out).mean()
 
     sigmoid = nn.Sigmoid()
 
-    # real images
-    input = torch.FloatTensor(opt.batchSize, 3, opt.imageSize, opt.imageSize)
-
+    # input to the discriminator of size [opt.batchSize, 3, opt.imageSize, opt.imageSize]
     # input noise for the generator
     noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1)
-
     # input noise to plot samples
     fixed_noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1).normal_(0, 1)
 
-    # labels
+    # labels to use with criterion
     label = torch.FloatTensor(opt.batchSize)
     real_label = 1
     fake_label = 0
@@ -71,16 +69,16 @@ if __name__ == '__main__':
     if opt.cuda:
         netD.cuda()
         netG.cuda()
-        if opt.mode != 'wgan':
-            criterion.cuda()
-        input, label = input.cuda(), label.cuda()
+        label = label.cuda()
         noise, fixed_noise = noise.cuda(), fixed_noise.cuda()
 
     fixed_noise = Variable(fixed_noise)
 
     # setup optimizer
-    optimizerD = torch.optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-    optimizerG = torch.optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+    optimizerD = torch.optim.Adam(
+        netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+    optimizerG = torch.optim.Adam(
+        netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
     step = 0
     for epoch in range(opt.niter):
@@ -92,25 +90,18 @@ if __name__ == '__main__':
                 ###########################
                 # train with real
                 netD.zero_grad()
+
                 real_cpu, _ = data
                 batch_size = real_cpu.size(0)
-                if opt.cuda:
-                    real_cpu = real_cpu.cuda()
-                input.resize_as_(real_cpu).copy_(real_cpu)
+
+                real_samples = real_cpu.cuda() if opt.cuda else real_cpu.clone()
+                real = Variable(real_samples)
                 label.resize_(batch_size).fill_(real_label)
-                inputv = Variable(input)
                 labelv = Variable(label)
 
-                output = netD(inputv).squeeze()
-                errD_real = criterion(output, labelv)
-                acc_real = sigmoid(output).data.round().mean()
-
-                gp_real = netD.gradient_penalty(inputv.data)
-                (opt.lanbda * gp_real).backward()
-
+                real_out = netD(real).squeeze()
+                errD_real = criterion(real_out, labelv)
                 errD_real.backward()
-                f_x = output.data.mean()
-                D_x = sigmoid(output).data.mean()
 
                 # train with fake
                 noise.resize_(batch_size, opt.nz, 1, 1).normal_(0, 1)
@@ -118,75 +109,96 @@ if __name__ == '__main__':
                 labelv = Variable(label.fill_(fake_label))
 
                 fake = netG(noisev)
-                output = netD(fake.detach()).squeeze()
-                errD_fake = criterion(output, labelv)
-
-                gp_fake = netD.gradient_penalty(fake.data)
-                (opt.lanbda * gp_fake).backward()
-
+                fake_out = netD(fake.detach()).squeeze()
+                errD_fake = criterion(fake_out, labelv)
                 errD_fake.backward()
-                acc_fake = 1 - sigmoid(output).data.round().mean()
-                f_G_z1 = output.data.mean()
-                D_G_z1 = sigmoid(output).data.mean()
-                errD = errD_real + errD_fake
+
+                # gradient penalty
+                if opt.lanbda > 0:
+                    if opt.penalty == 'real':
+                        inp = real.data
+                    elif opt.penalty == 'fake':
+                        inp = fake.data
+                    elif opt.penalty == 'both':
+                        inp = torch.cat([real.data, fake.data], dim=0)
+                    elif opt.penalty == 'uniform':
+                        inp = 256 * torch.rand(real.size())
+                    gp = netD.gradient_penalty(inp)
+                    (opt.lanbda * gp).backward()
+                else:
+                    gp = 0
+
+                # update
                 optimizerD.step()
+
+                # monitor
+                real_acc = sigmoid(real_out).data.round().mean()
+                f_x = real_out.data.mean()
+                D_x = sigmoid(real_out).data.mean()
+
+                fake_acc = 1 - sigmoid(fake_out).data.round().mean()
+                f_G_z1 = fake_out.data.mean()
+                D_G_z1 = sigmoid(fake_out).data.mean()
+                errD = errD_real + errD_fake
 
             for k in range(opt.gen_iter):
                 ############################
                 # (2) Update G network: maximize log(D(G(z)))
                 ###########################
                 if k > 0:
-                    noise.resize_(batch_size, opt.nz, 1, 1).normal_(0, 1)
+                    noise.resize_(opt.batchSize, opt.nz, 1, 1).normal_(0, 1)
                     noisev = Variable(noise)
                     fake = netG(noisev)
 
                 netG.zero_grad()
-                output = netD(fake).squeeze()
+
+                fake_out = netD(fake).squeeze()
                 if opt.mode == 'nsgan':  # non-saturating gan
                     # use the real labels (1) for generator cost
                     labelv = Variable(label.fill_(real_label))
-                    errG = criterion(output, labelv)
+                    errG = criterion(fake_out, labelv)
                 elif opt.mode == 'mmgan':  # minimax gan
                     # use fake labels and opposite of criterion
                     labelv = Variable(label.fill_(fake_label))
-                    errG = - criterion(output, labelv)
+                    errG = - criterion(fake_out, labelv)
                 elif opt.mode == 'lsgan':  # least square gan NOT WORKING
                     # use real labels for generator
                     labelv = Variable(label.fill_(real_label))
-                    errG = criterion(output, labelv)
+                    errG = criterion(fake_out, labelv)
                 elif opt.mode == 'wgan':
                     labelv = Variable(label.fill_(real_label))
-                    errG = criterion(output, labelv)
+                    errG = criterion(fake_out, labelv)
 
                 errG.backward()
-                f_G_z2 = output.data.mean()
-                D_G_z2 = sigmoid(output).data.mean()
                 optimizerG.step()
 
-            if i % 50 == 0:
+                # monitor
+                f_G_z2 = fake_out.data.mean()
+                D_G_z2 = sigmoid(fake_out).data.mean()
+
+            if step % 50 == 0:  # print and log info
                 print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
                       % (epoch, opt.niter, i, len(dataloader),
                          errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
-                info = {'disc_cost': errD.data[0], \
-                        'gen_cost': errG.data[0], \
-                        'f_x': f_x, \
-                        'f_G_z1': f_G_z1, \
-                        'D_x': D_x, \
-                        'D_G_z': D_G_z1, \
-                        'acc_real': acc_real, \
-                        'acc_fake': acc_fake, \
-                        'logit_dist': f_x - f_G_z1, \
-                        'penalty_real': opt.lanbda * (gp_real).data[0], \
-                        'penalty_fake': opt.lanbda * (gp_fake).data[0], \
-                        'gradient_norm_real': (gp_real).data[0], \
-                        'gradient_norm_fake': (gp_fake).data[0]}
+                info = {
+                    'disc_cost': errD.data[0],
+                    'gen_cost': errG.data[0],
+                    'f_x': f_x,
+                    'f_G_z1': f_G_z1,
+                    'D_x': D_x,
+                    'D_G_z': D_G_z1,
+                    'acc_real': real_acc,
+                    'acc_fake': fake_acc,
+                    'logit_dist': f_x - f_G_z1,
+                    'penalty': opt.lanbda * gp.data[0]
+                }
 
                 for tag, val in info.items():
                     writer.add_scalar(tag, val, global_step=step)
 
-            if i % 50 == 0:  # plot samples !
+            if step % 100 == 0:  # plot samples
                 utils.plot_images(
-                    opt.outf, writer, 'real_samples', real_cpu, step)
+                    opt.outf, writer, 'real_samples', real_samples, step)
                 fake = netG(fixed_noise)
                 utils.plot_images(
                     opt.outf, writer, 'fake_samples', fake.data, step)
@@ -215,11 +227,10 @@ if __name__ == '__main__':
                 # for name, param in netG.named_parameters():
                 #     writer.add_histogram(name, param.clone().cpu().data.numpy(), step)
 
-            if step % 500 == 0:
+            if step % 500 == 0:  # compute scores
                 incep_score, _ = scores.inception_score(fake.data, resize=True)
-                md_score, _ = scores.mode_score(fake.data, real_cpu, resize=True)
-                print(f'Inception: {incep_score}')
-                print(f'Mode score: {md_score}')
+                md_score, _ = scores.mode_score(fake.data, real_samples, resize=True)
+                print(f'Inception: {incep_score} and Mode score: {md_score}\n')
                 writer.add_scalar('inception_score', incep_score, global_step=step)
                 writer.add_scalar('mode_score', md_score, global_step=step)
 

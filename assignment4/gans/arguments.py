@@ -83,7 +83,7 @@ def get_arguments():
     # OUT FOLDER
     root_path = f'/data/milatmp1/{getpass.getuser()}'
     now = datetime.datetime.now()
-    strpenalty = '0' if opt.lanbda == 0 else f'{opt.lanbda}{opt.penalty}'
+    strpenalty = '0' if opt.lanbda <= 0 else f'{opt.lanbda}{opt.penalty}'
     folder_path = (
         f'{opt.dataset}/{now.month}_{now.day}'
         f'/{now.hour}_{now.minute}_{opt.mode}_{opt.name}'
