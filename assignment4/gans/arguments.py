@@ -6,6 +6,8 @@ import os
 import random
 
 import torch
+from torch import cuda
+from torch.backends import cudnn
 
 
 def get_arguments():
@@ -44,7 +46,7 @@ def get_arguments():
                         help='number of critic iterations')
     parser.add_argument('--gen_iter', type=int, default=1,
                         help='number of generator iterations')
-    parser.add_argument('--lanbda', type=float, default=.5,
+    parser.add_argument('--lanbda', type=float, default=1,
                         help='Regularization factor for the gradient penalty.')
     parser.add_argument('--penalty', type=str, default='both',
                         choices=['real', 'fake', 'both', 'uniform'],
@@ -65,8 +67,8 @@ def get_arguments():
     opt.nc = 3
 
     # CUDA
-    torch.backends.cudnn.benchmark = True
-    opt.cuda = torch.cuda.is_available()
+    cudnn.benchmark = True
+    opt.cuda = cuda.is_available()
 
     # SEED
     if opt.manual_seed is None:
@@ -78,7 +80,7 @@ def get_arguments():
     random.seed(opt.seed)
     torch.manual_seed(opt.seed)
     if opt.cuda:
-        torch.cuda.manual_seed_all(opt.seed)
+        cuda.manual_seed_all(opt.seed)
 
     # OUT FOLDER
     root_path = f'/data/milatmp1/{getpass.getuser()}'
@@ -94,3 +96,5 @@ def get_arguments():
 
     print('Outfile: ', opt.outf)
     os.makedirs(opt.outf)
+
+    return opt
