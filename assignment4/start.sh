@@ -7,4 +7,4 @@
 
 source activate pytorch36
 
-python my_dcgan_main.py --lanbda 0.5  --upsample nearest
+python my_dcgan_main.py --lanbda 1 --penalty fake

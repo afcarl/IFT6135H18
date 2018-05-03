@@ -4,6 +4,7 @@ import torch.nn as nn
 import torchvision.datasets as vdset
 import torchvision.transforms as vtransforms
 from torch.autograd import Variable
+from torch.utils.data import DataLoader
 
 from gans import arguments, models, scores, utils
 
@@ -27,7 +28,7 @@ if __name__ == '__main__':
                 (0.5, 0.5, 0.5)
             ),
         ]))
-    dataloader = torch.utils.data.DataLoader(
+    dataloader = DataLoader(
         dataset, batch_size=opt.batchSize,
         shuffle=True, num_workers=int(opt.workers)
     )

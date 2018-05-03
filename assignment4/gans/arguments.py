@@ -36,10 +36,10 @@ def get_arguments():
     parser.add_argument('--manual-seed', type=int, help='manual seed')
 
     # GAN architecture
-    parser.add_argument('--mode', type=str, default='nsgan', metavar='N',
+    parser.add_argument('--mode', type=str, default='mmgan', metavar='N',
                         help='Type of GAN: minimax, non-saturating, least-square, Wasserstein.',
                         choices=['mmgan', 'nsgan', 'lsgan', 'wgan'])
-    parser.add_argument('--upsample', type=str, default='convtranspose',
+    parser.add_argument('--upsample', type=str, default='nearest',
                         choices=['convtranspose', 'nearest', 'bilinear'],
                         help='Method used in the generator to up-sample images.')
     parser.add_argument('--critic_iter', type=int, default=1,
