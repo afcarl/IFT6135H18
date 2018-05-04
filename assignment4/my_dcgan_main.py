@@ -1,3 +1,6 @@
+import os
+import shutil
+
 import tensorboardX
 import torch
 import torch.nn as nn
@@ -178,7 +181,7 @@ if __name__ == '__main__':
                 D_G_z2 = sigmoid(fake_out).data.mean()
 
             if step % 50 == 0:  # print and log info
-                print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
+                print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f | %.4f'
                       % (epoch, opt.niter, i, len(dataloader),
                          errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
                 info = {
@@ -191,13 +194,13 @@ if __name__ == '__main__':
                     'acc_real': real_acc,
                     'acc_fake': fake_acc,
                     'logit_dist': f_x - f_G_z1,
-                    'penalty': opt.lanbda * gp.data[0]
+                    'penalty': 0 if opt.lanbda <= 0 else opt.lanbda * gp.data[0]
                 }
 
                 for tag, val in info.items():
                     writer.add_scalar(tag, val, global_step=step)
 
-            if step % 100 == 0:  # plot samples
+            if step % 500 == 0:  # plot samples
                 utils.plot_images(
                     opt.outf, writer, 'real_samples', real_samples, step)
                 fake = netG(fixed_noise)
@@ -213,14 +216,14 @@ if __name__ == '__main__':
                     opt.outf, writer, 'fake_interpolation_samples',
                     fake_interpolation.data, step, nrow=10)
 
-                # interpolation in the sample space
-                interpolated_noise = Variable(interpolated_noise).cuda()
-                fake_interpolated = netG(interpolated_noise)
-                x_interpolation = \
-                    utils.make_interpolation_samples(fake_interpolated.data)
-                utils.plot_images(
-                    opt.outf, writer, 'fake_x_interpolation',
-                    x_interpolation, step, nrow=10)
+                # # interpolation in the sample space
+                # interpolated_noise = Variable(interpolated_noise).cuda()
+                # fake_interpolated = netG(interpolated_noise)
+                # x_interpolation = \
+                #     utils.make_interpolation_samples(fake_interpolated.data)
+                # utils.plot_images(
+                #     opt.outf, writer, 'fake_x_interpolation',
+                #     x_interpolation, step, nrow=10)
 
                 ## Save parameters histogram
                 # for name, param in netD.named_parameters():
