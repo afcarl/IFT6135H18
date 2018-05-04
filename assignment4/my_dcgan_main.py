@@ -131,7 +131,7 @@ if __name__ == '__main__':
                     elif opt.penalty == 'both':
                         inp = torch.cat([real.data, fake.data], dim=0)
                     elif opt.penalty == 'uniform':
-                        inp = sample_noise.uniform_()
+                        inp = sample_noise.uniform_(-1, 1)
                     gp = netD.gradient_penalty(inp)
                     (opt.lanbda * gp).backward()
                 else:
@@ -185,7 +185,7 @@ if __name__ == '__main__':
                 f_G_z2 = fake_out.data.mean()
                 D_G_z2 = sigmoid(fake_out).data.mean()
 
-            if step % 50 == 0:  # print and log info
+            if step % 100 == 0:  # print and log info
                 print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f | %.4f'
                       % (epoch, opt.niter, i, len(dataloader),
                          errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
