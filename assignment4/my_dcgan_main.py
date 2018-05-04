@@ -1,6 +1,3 @@
-import os
-import shutil
-
 import tensorboardX
 import torch
 import torch.nn as nn
@@ -37,6 +34,11 @@ if __name__ == '__main__':
     )
     print('Dataloader done')
 
+    for im in dataloader:
+        print('Sample data point:')
+        print(im)
+        break
+
     # INITIALIZE MODELS
     netG = models.GeneratorNet(opt)
     netD = models.DiscriminatorNet(opt)
@@ -60,8 +62,9 @@ if __name__ == '__main__':
     sigmoid = nn.Sigmoid()
 
     # input to the discriminator of size [opt.batchSize, 3, opt.imageSize, opt.imageSize]
+    sample_noise = torch.FloatTensor(opt.batchSize, 3, opt.imageSize, opt.imageSize)
     # input noise for the generator
-    noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1)
+    latent_noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1)
     # input noise to plot samples
     fixed_noise = torch.FloatTensor(opt.batchSize, opt.nz, 1, 1).normal_(0, 1)
 
@@ -74,7 +77,9 @@ if __name__ == '__main__':
         netD.cuda()
         netG.cuda()
         label = label.cuda()
-        noise, fixed_noise = noise.cuda(), fixed_noise.cuda()
+        sample_noise = sample_noise.cuda()
+        latent_noise = latent_noise.cuda()
+        fixed_noise = fixed_noise.cuda()
 
     fixed_noise = Variable(fixed_noise)
 
@@ -108,8 +113,8 @@ if __name__ == '__main__':
                 errD_real.backward()
 
                 # train with fake
-                noise.resize_(batch_size, opt.nz, 1, 1).normal_(0, 1)
-                noisev = Variable(noise)
+                latent_noise.resize_(batch_size, opt.nz, 1, 1).normal_(0, 1)
+                noisev = Variable(latent_noise)
                 labelv = Variable(label.fill_(fake_label))
 
                 fake = netG(noisev)
@@ -126,7 +131,7 @@ if __name__ == '__main__':
                     elif opt.penalty == 'both':
                         inp = torch.cat([real.data, fake.data], dim=0)
                     elif opt.penalty == 'uniform':
-                        inp = 256 * torch.rand(real.size())
+                        inp = sample_noise.uniform_()
                     gp = netD.gradient_penalty(inp)
                     (opt.lanbda * gp).backward()
                 else:
@@ -150,8 +155,8 @@ if __name__ == '__main__':
                 # (2) Update G network: maximize log(D(G(z)))
                 ###########################
                 if k > 0:
-                    noise.resize_(opt.batchSize, opt.nz, 1, 1).normal_(0, 1)
-                    noisev = Variable(noise)
+                    latent_noise.resize_(opt.batchSize, opt.nz, 1, 1).normal_(0, 1)
+                    noisev = Variable(latent_noise)
                     fake = netG(noisev)
 
                 netG.zero_grad()
