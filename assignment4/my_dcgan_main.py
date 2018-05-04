@@ -34,11 +34,6 @@ if __name__ == '__main__':
     )
     print('Dataloader done')
 
-    for im in dataloader:
-        print('Sample data point:')
-        print(im)
-        break
-
     # INITIALIZE MODELS
     netG = models.GeneratorNet(opt)
     netD = models.DiscriminatorNet(opt)
@@ -132,6 +127,8 @@ if __name__ == '__main__':
                         inp = torch.cat([real.data, fake.data], dim=0)
                     elif opt.penalty == 'uniform':
                         inp = sample_noise.uniform_(-1, 1)
+                    elif opt.penalty == 'midinterpol':
+                        inp = 0.5*(real.data + fake.data)
                     gp = netD.gradient_penalty(inp)
                     (opt.lanbda * gp).backward()
                 else:
