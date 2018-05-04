@@ -42,22 +42,22 @@ class GeneratorNet(nn.Module):
                 nn.BatchNorm2d(opt.ngf * 8),
                 nn.ReLU(True),
                 # state size. (ngf*8) x 4 x 4
-                nn.Upsample(scale_factor=2, mode=opt.mode),
+                nn.Upsample(scale_factor=2, mode=opt.upsample),
                 nn.Conv2d(opt.ngf * 8, opt.ngf * 4, 5, padding=2, bias=False),
                 nn.BatchNorm2d(opt.ngf * 4),
                 nn.ReLU(True),
                 # state size. (ngf*4) x 8 x 8
-                nn.Upsample(scale_factor=2, mode=opt.mode),
+                nn.Upsample(scale_factor=2, mode=opt.upsample),
                 nn.Conv2d(opt.ngf * 4, opt.ngf * 2, 5, padding=2, bias=False),
                 nn.BatchNorm2d(opt.ngf * 2),
                 nn.ReLU(True),
                 # state size. (ngf*2) x 16 x 16
-                nn.Upsample(scale_factor=2, mode=opt.mode),
+                nn.Upsample(scale_factor=2, mode=opt.upsample),
                 nn.Conv2d(opt.ngf * 2, opt.ngf, 5, padding=2, bias=False),
                 nn.BatchNorm2d(opt.ngf),
                 nn.ReLU(True),
                 # state size. (ngf) x 32 x 32
-                nn.Upsample(scale_factor=2, mode=opt.mode),
+                nn.Upsample(scale_factor=2, mode=opt.upsample),
                 nn.Conv2d(opt.ngf, opt.nc, 5, padding=2, bias=False),
                 nn.Tanh()
                 # state size. (nc) x 64 x 64
