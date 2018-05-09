@@ -48,8 +48,7 @@ def get_arguments():
                         help='number of generator iterations')
     parser.add_argument('--lanbda', type=float, default=1,
                         help='Regularization factor for the gradient penalty.')
-    parser.add_argument('--penalty', type=str, default='both',
-                        choices=['real', 'fake', 'both', 'uniform', 'midinterpol'],
+    parser.add_argument('--penalty', type=str, default='both', choices=['real', 'fake', 'both', 'uniform', 'midinterpol', 'grad_g'],
                         help='Distribution on which to apply gradient penalty.')
 
     # Checkpoints
