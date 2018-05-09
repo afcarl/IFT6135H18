@@ -118,22 +118,27 @@ if __name__ == '__main__':
                 errD_fake.backward()
 
                 # gradient penalty
+                # gp = netD.gradient_penalty_g(noisev.detach(), netG)
+                # (opt.lanbda * gp).backward()
                 if opt.lanbda > 0:
-                    if opt.penalty == 'real':
-                        inp = real.data
-                    elif opt.penalty == 'fake':
-                        inp = fake.data
-                    elif opt.penalty == 'both':
-                        inp = torch.cat([real.data, fake.data], dim=0)
-                    elif opt.penalty == 'uniform':
-                        inp = sample_noise.uniform_(-1, 1)
-                    elif opt.penalty == 'midinterpol':
-                        inp = 0.5*(real.data + fake.data)
-                    gp = netD.gradient_penalty(inp)
+                    if opt.penalty == 'grad_g':
+                        gp = netD.gradient_penalty_g(noisev.detach(), netG)
+                    else:
+                        if opt.penalty == 'real':
+                            inp = real.data
+                        elif opt.penalty == 'fake':
+                            inp = fake.data
+                        elif opt.penalty == 'both':
+                            inp = torch.cat([real.data, fake.data], dim=0)
+                        elif opt.penalty == 'uniform':
+                            inp = sample_noise.uniform_(-1, 1)
+                        elif opt.penalty == 'midinterpol':
+                            inp = 0.5*(real.data + fake.data)
+                        gp = netD.gradient_penalty(inp)
                     (opt.lanbda * gp).backward()
                 else:
                     gp = 0
-
+                #
                 # update
                 optimizerD.step()
 
@@ -187,16 +192,16 @@ if __name__ == '__main__':
                       % (epoch, opt.niter, i, len(dataloader),
                          errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
                 info = {
-                    'disc_cost': errD.data[0],
-                    'gen_cost': errG.data[0],
-                    'f_x': f_x,
-                    'f_G_z1': f_G_z1,
-                    'D_x': D_x,
-                    'D_G_z': D_G_z1,
-                    'acc_real': real_acc,
-                    'acc_fake': fake_acc,
-                    'logit_dist': f_x - f_G_z1,
-                    'penalty': 0 if opt.lanbda <= 0 else opt.lanbda * gp.data[0]
+                    'losses/disc_cost': errD.data[0],
+                    'losses/gen_cost': errG.data[0],
+                    'losses/logit_dist': f_x - f_G_z1,
+                    'losses/penalty': 0 if opt.lanbda <= 0 else opt.lanbda * gp.data[0],
+                    'values/f_x': f_x,
+                    'values/f_G_z': f_G_z1,
+                    'values/D_x': D_x,
+                    'values/D_G_z': D_G_z1,
+                    'accuracy/real': real_acc,
+                    'accuracy/fake': fake_acc,
                 }
 
                 for tag, val in info.items():
@@ -237,8 +242,8 @@ if __name__ == '__main__':
                 incep_score, _ = scores.inception_score(fake.data, resize=True)
                 md_score, _ = scores.mode_score(fake.data, real_samples, resize=True)
                 print(f'Inception: {incep_score} and Mode score: {md_score}\n')
-                writer.add_scalar('inception_score', incep_score, global_step=step)
-                writer.add_scalar('mode_score', md_score, global_step=step)
+                writer.add_scalar('metrics/inception_score', incep_score, global_step=step)
+                writer.add_scalar('metrics/mode_score', md_score, global_step=step)
 
         # do checkpointing
         if epoch % 5 == 0:

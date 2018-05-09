@@ -120,6 +120,20 @@ class DiscriminatorNet(nn.Module):
         gp = ((g.view(inp.size(0), -1).norm(p=2, dim=1)) ** 2).mean()
         return gp
 
+    def gradient_penalty_g(self, z, netG):
+        #inp = Variable(inp, requires_grad=True)
+        o = self.forward(netG(z))
+        g = torch.autograd.grad(
+            o, netG.parameters(),
+            grad_outputs=torch.ones_like(o),
+            create_graph=True,
+            only_inputs=True  # don't accumulate other gradients in .grad
+        )[0]
+        gp = 0
+        for grad in g:
+            gp += ((grad.view(z.size(0), -1).norm(p=2, dim=1)) ** 2).mean()
+        return gp
+
 
 def weights_init(m):
     """Custom weights initialization."""
