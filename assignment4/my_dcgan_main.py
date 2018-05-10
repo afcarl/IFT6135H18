@@ -118,12 +118,13 @@ if __name__ == '__main__':
                 errD_fake.backward()
 
                 # gradient penalty
-                # gp = netD.gradient_penalty_g(noisev.detach(), netG)
-                # (opt.lanbda * gp).backward()
+                gp = 0
                 if opt.lanbda > 0:
                     if opt.penalty == 'grad_g':
+                        # penalize gradient wrt generator's parameters
                         gp = netD.gradient_penalty_g(noisev.detach(), netG)
                     else:
+                        # penalize gradient wrt samples
                         if opt.penalty == 'real':
                             inp = real.data
                         elif opt.penalty == 'fake':
@@ -133,12 +134,10 @@ if __name__ == '__main__':
                         elif opt.penalty == 'uniform':
                             inp = sample_noise.uniform_(-1, 1)
                         elif opt.penalty == 'midinterpol':
-                            inp = 0.5*(real.data + fake.data)
+                            inp = 0.5 * (real.data + fake.data)
                         gp = netD.gradient_penalty(inp)
                     (opt.lanbda * gp).backward()
-                else:
-                    gp = 0
-                #
+
                 # update
                 optimizerD.step()
 
