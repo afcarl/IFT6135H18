@@ -37,5 +37,5 @@ class SNLinear(nn.Linear):
         self.register_buffer('u', l2normalize(self.weight.data.new(self.height).normal_(0, 1)))
 
     def forward(self, input):
-        w_sn, u = sn_weight(self.weight, self.u, self.height, self.n_power_iterations)
+        w_sn, self.u = sn_weight(self.weight, self.u, self.height, self.n_power_iterations)
         return F.linear(input, w_sn, self.bias)
