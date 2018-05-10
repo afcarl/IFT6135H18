@@ -49,6 +49,8 @@ def get_arguments():
     parser.add_argument('--penalty', type=str, default='both',
                         choices=['real', 'fake', 'both', 'uniform', 'midinterpol', 'grad_g'],
                         help='Distribution on which to apply gradient penalty.')
+    parser.add_argument('--spectral-norm', type=bool, default=False,
+                        help='If True, use spectral normalization in the discriminator.')
 
     # Checkpoints
     parser.add_argument('--netG', default='', help="path to netG (to continue training)")
@@ -92,10 +94,11 @@ def get_arguments():
     root_path = f'/data/milatmp1/{getpass.getuser()}'
     now = datetime.datetime.now()
     strpenalty = '0' if opt.lanbda <= 0 else f'{opt.lanbda}{opt.penalty}'
+    strspectral = '_SN' if opt.spectral_norm else ''
     folder_path = (
         f'{opt.dataset}/{now.month}_{now.day}'
         f'/{now.hour}_{now.minute}_{opt.mode}_{opt.name}'
-        f'_gp={strpenalty}_citer={opt.critic_iter}_giter={opt.gen_iter}'
+        f'_gp={strpenalty}{strspectral}_citer={opt.critic_iter}_giter={opt.gen_iter}'
         f'_beta1={opt.beta1}_upsample={opt.upsample}_seed={opt.seed}'
     )
     opt.outf = os.path.join(root_path, opt.outf, folder_path)

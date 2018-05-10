@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
+from gans.spectral_norm import SNConv2d
 
 class GeneratorNet(nn.Module):
     """Generator network with square layers of  size [1, 4, 8, 16, 32]"""
@@ -77,24 +78,26 @@ class DiscriminatorNet(nn.Module):
     def __init__(self, opt):
         super(DiscriminatorNet, self).__init__()
         self.ngpu = opt.ngpu
+        conv2d = SNConv2d if opt.spectral_norm else nn.Conv2d
+
         self.main = nn.Sequential(
             # input is (nc) x 64 x 64
-            nn.Conv2d(opt.nc, opt.ndf, 4, 2, 1, bias=False),
+            conv2d(opt.nc, opt.ndf, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf) x 32 x 32
-            nn.Conv2d(opt.ndf, opt.ndf * 2, 4, 2, 1, bias=False),
+            conv2d(opt.ndf, opt.ndf * 2, 4, 2, 1, bias=False),
             nn.BatchNorm2d(opt.ndf * 2),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*2) x 16 x 16
-            nn.Conv2d(opt.ndf * 2, opt.ndf * 4, 4, 2, 1, bias=False),
+            conv2d(opt.ndf * 2, opt.ndf * 4, 4, 2, 1, bias=False),
             nn.BatchNorm2d(opt.ndf * 4),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*4) x 8 x 8
-            nn.Conv2d(opt.ndf * 4, opt.ndf * 8, 4, 2, 1, bias=False),
+            conv2d(opt.ndf * 4, opt.ndf * 8, 4, 2, 1, bias=False),
             nn.BatchNorm2d(opt.ndf * 8),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*8) x 4 x 4
-            nn.Conv2d(opt.ndf * 8, 1, 4, 1, 0, bias=False),
+            conv2d(opt.ndf * 8, 1, 4, 1, 0, bias=False),
             # nn.Sigmoid()
         )
 
@@ -121,7 +124,7 @@ class DiscriminatorNet(nn.Module):
         return gp
 
     def gradient_penalty_g(self, z, netG):
-        #inp = Variable(inp, requires_grad=True)
+        # inp = Variable(inp, requires_grad=True)
         o = self.forward(netG(z))
         g = torch.autograd.grad(
             o, netG.parameters(),
