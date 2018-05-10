@@ -14,9 +14,7 @@ def get_arguments():
     parser = argparse.ArgumentParser()
 
     # Dataset
-    parser.add_argument('--dataset', default='celebA', choices=['celebA'])
-    parser.add_argument('--dataroot', default='/data/lisa/data/celeba',
-                        help='path to dataset')
+    parser.add_argument('--dataset', default='celebA', choices=['celebA', 'TinyImagenet'])
     parser.add_argument('--imageSize', type=int, default=64,
                         help='the height / width of the input image to network')
     parser.add_argument('--nz', type=int, default=100,
@@ -48,7 +46,8 @@ def get_arguments():
                         help='number of generator iterations')
     parser.add_argument('--lanbda', type=float, default=1,
                         help='Regularization factor for the gradient penalty.')
-    parser.add_argument('--penalty', type=str, default='both', choices=['real', 'fake', 'both', 'uniform', 'midinterpol', 'grad_g'],
+    parser.add_argument('--penalty', type=str, default='both',
+                        choices=['real', 'fake', 'both', 'uniform', 'midinterpol', 'grad_g'],
                         help='Distribution on which to apply gradient penalty.')
 
     # Checkpoints
@@ -61,6 +60,14 @@ def get_arguments():
 
     opt = parser.parse_args()
     print(opt)
+
+    # DATASET
+    if opt.dataset.lower() == 'celeba':
+        opt.dataroot = '/data/lisa/data/celeba'
+    elif opt.dataset.lower() == 'tinyimagenet':
+        opt.dataroot = '/data/lisa/data/tiny-imagenet-200/train'
+    else:
+        raise NotImplementedError
 
     # Number of input channels (RGB)
     opt.nc = 3
