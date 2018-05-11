@@ -30,7 +30,7 @@ if __name__ == '__main__':
         ]))
     dataloader = DataLoader(
         dataset, batch_size=opt.batchSize,
-        shuffle=True, num_workers=int(opt.workers)
+        shuffle=True, num_workers=int(opt.workers), drop_last=True
     )
     print('Dataloader done')
 
